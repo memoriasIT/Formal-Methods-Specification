@@ -20,6 +20,12 @@ mod BAKERY is
     subsort Mode < Oid .
     ops sleep wait crit : -> Mode .
 
+    ---    ___ _  ~~ @ Classes @ ~~  C                
+    ---   / __| |__ _ ______ ___ ___ L
+    ---  | (__| / _` (_-<_-</ -_|_-< A
+    ---   \___|_\__,_/__/__/\___/__/ S
+    ---           ~~ @ Classes @ ~~  S
+
     --- Clase BProcess modela el comportamiento de un proceso
     --- class BProcess | mode: Mode, number: Nat .
     --- Atributos:
@@ -44,14 +50,27 @@ mod BAKERY is
     op next:_    : Nat -> Attribute [gather (&)] .
     op last:_    : Nat -> Attribute [gather (&)] .
 
+
+    ---    ___            ~
+    ---   / _ \ _ __ ___  O
+    ---  | (_) | '_ (_-<  P
+    ---   \___/| .__/__/  S
+    ---        |_|        ~      
+
+    --- VARIABLES 
+    var Dis       : Dispenser .
+    vars X Y Z    : Nat .
+    var Atts      : AttributeSet .
+
+    --- Operación para crear PIDs (Identificadores de procesos)
+    sort ProcessId .
+    subsort ProcessId < Oid .
+    op P_ : Nat -> ProcessId .
+
     --- Operación para crear sistemas con un número cualquiera de procesos
     ---     Default: Dispenser.next = Dispenser.last = 1
     op initial : Nat -> GBState .
 
-    vars O        : Oid . 
-    var VBProcess : BProcess .
-    vars X Y Z    : Nat .
-    var Atts      : AttributeSet .
 
     --- R  @ RULES @  _  @ RULES @ R      
     --- U  _ _  _  _ | | ___  ___  U
@@ -90,9 +109,12 @@ eof
 ---                ____________________
 --- --\__/--\__/--[      BProcess      ]--\__/--\__/--
 
---- rew < O : BProcess | mode: sleep, number: 1 > .
+--- Creación de un proceso con ID 32
+---     modo: sleep
+---     numero en cola: 1
+--- rew < P 32 : BProcess | mode: sleep, number: 1 > . 
 
 ---                ____________________
 --- --\__/--\__/--[      Dispenser     ]--\__/--\__/--
 
---- rew < O : Dispenser | next: 1, last: 1 > . 
+--- rew < D : Dispenser | next: 1, last: 1 > . 
