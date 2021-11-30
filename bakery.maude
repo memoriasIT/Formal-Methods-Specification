@@ -1,0 +1,98 @@
+---   ____        _                   
+---  |  _ \      | |                  
+---  | |_) | __ _| | _____ _ __ _   _ 
+---  |  _ < / _` | |/ / _ \ '__| | | |
+---  | |_) | (_| |   <  __/ |  | |_| |
+---  |____/ \__,_|_|\_\___|_|   \__, |
+---     Lorenzo V.S.   &&        __/ |
+---        María G.M.           |___/ 
+mod BAKERY is
+    protecting NAT .
+    including CONFIGURATION .
+
+    --- Colección de objetos que modelan el sistema
+    sort GBState .
+    op [[_]] : Configuration -> GBState .
+
+    --- Un proceso puede estar en tres posibles estados:
+    --- sleep, wait o crit
+    sort Mode .
+    subsort Mode < Oid .
+    ops sleep wait crit : -> Mode .
+
+    --- Clase BProcess modela el comportamiento de un proceso
+    --- class BProcess | mode: Mode, number: Nat .
+    --- Atributos:
+    ---     * mode:     estado del proceso (sleep, wait, crit)
+    ---     * number:   PID del proceso, su identificador
+    sort BProcess .
+    subsort BProcess < Cid .
+    op BProcess : -> BProcess .
+
+    op mode:_   : Mode  -> Attribute [gather (&)] .
+    op number:_ : Nat   -> Attribute [gather (&)] .
+
+    --- Clase Dispenser que modela el comportamiento de un dispatcher
+    --- class Dispenser | next: Nat, last: Nat .
+    --- Argumentos:
+    ---     * next: Id del próximo proceso a atender
+    ---     * last: Id del último proceso atendido
+    sort Dispenser .
+    subsort Dispenser < Cid .
+    op Dispenser : -> Dispenser .
+
+    op next:_    : Nat -> Attribute [gather (&)] .
+    op last:_    : Nat -> Attribute [gather (&)] .
+
+    --- Operación para crear sistemas con un número cualquiera de procesos
+    ---     Default: Dispenser.next = Dispenser.last = 1
+    op initial : Nat -> GBState .
+
+    vars O        : Oid . 
+    var VBProcess : BProcess .
+    vars X Y Z    : Nat .
+    var Atts      : AttributeSet .
+
+    --- R  @ RULES @  _  @ RULES @ R      
+    --- U  _ _  _  _ | | ___  ___  U
+    --- L | '_|| || || |/ -_)(_-<  L
+    --- E |_|   \_,_||_|\___|/__/  E
+    --- S  @ RULES @    @ RULES @  S    
+
+    --- BProcess: sleep -> wait
+    ---     Se toma el número de orden disponible (last) en el dispatcher (Dispenser)
+    ---     Dispenser.last++
+    --- // TODO Fill rule
+    --- rl [wake-up] : => .
+
+    --- BProcess.Id == Dispenser.next
+    ---     BProcess: wait -> crit
+    --- // TODO Fill rule
+    --- rl [crit] : => .
+
+    --- BProcess: crit -> sleep
+    ---     BProcess.number = 0
+    ---     Dispenser.next++
+    --- // TODO Fill rule
+    --- rl [sleep] : => .
+
+
+endm
+
+
+eof
+
+---  ____  ____  _  _   __  
+--- (    \(  __)( \/ ) /  \ 
+---  ) D ( ) _) / \/ \(  O )
+--- (____/(____)\_)(_/ \__/ 
+
+---                ____________________
+--- --\__/--\__/--[      BProcess      ]--\__/--\__/--
+
+--- rew < O : BProcess | mode: sleep, number: 1 > .
+
+---                ____________________
+--- --\__/--\__/--[      Dispenser     ]--\__/--\__/--
+
+--- rew < O : Dispenser | next: 1, last: 1 > . 
