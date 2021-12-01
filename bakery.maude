@@ -17,7 +17,6 @@ mod BAKERY is
     --- Un proceso puede estar en tres posibles estados:
     --- sleep, wait o crit
     sort Mode .
-    subsort Mode < Oid .
     ops sleep wait crit : -> Mode .
 
     ---    ___ _  ~~ @ Classes @ ~~  C                
@@ -57,19 +56,31 @@ mod BAKERY is
     ---   \___/| .__/__/  S
     ---        |_|        ~      
 
-    --- VARIABLES 
-    var Dis       : Dispenser .
-    vars X Y Z    : Nat .
-    var Atts      : AttributeSet .
+    --- Operación para crear Dispensadores
+    sort DispenserId .
+    subsort DispenserId < Oid .
+    op D_ : Nat -> DispenserId .
 
     --- Operación para crear PIDs (Identificadores de procesos)
     sort ProcessId .
     subsort ProcessId < Oid .
     op P_ : Nat -> ProcessId .
 
+    --- VARIABLES 
+    var  D        : Dispenser .
+    var  Did      : DispenserId .
+    var  Pid      : ProcessId .
+    vars X Y Z    : Nat .
+    var Atts      : AttributeSet .
+
     --- Operación para crear sistemas con un número cualquiera de procesos
     ---     Default: Dispenser.next = Dispenser.last = 1
+    op initialAux : Nat -> Configuration .
+    eq initialAux (0) = < D 0 : Dispenser | next: 1, last: 1 >  .
+    eq initialAux (s X) = (< P  (s X) : BProcess | mode: sleep, number: (s X) >) (initialAux(X)) .
+
     op initial : Nat -> GBState .
+    eq initial (X) = [[ initialAux(X) ]] .
 
 
     --- R  @ RULES @  _  @ RULES @ R      
@@ -81,19 +92,19 @@ mod BAKERY is
     --- BProcess: sleep -> wait
     ---     Se toma el número de orden disponible (last) en el dispatcher (Dispenser)
     ---     Dispenser.last++
-    --- // TODO Fill rule
-    --- rl [wake-up] : => .
+    rl [wake-up] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: sleep, number: Z > 
+    =>  < Did : Dispenser | next: X, last: s Y > < Pid : BProcess | mode: wait, number: Z >  .
 
     --- BProcess.Id == Dispenser.next
     ---     BProcess: wait -> crit
-    --- // TODO Fill rule
-    --- rl [crit] : => .
+    rl [crit] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: wait, number: X >  
+    => < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: crit, number: X >  .
 
     --- BProcess: crit -> sleep
     ---     BProcess.number = 0
     ---     Dispenser.next++
-    --- // TODO Fill rule
-    --- rl [sleep] : => .
+    rl [sleep] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: crit, number: Z > 
+    =>  < Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: sleep, number: 0 > .
 
 
 endm
@@ -118,3 +129,9 @@ eof
 --- --\__/--\__/--[      Dispenser     ]--\__/--\__/--
 
 --- rew < D : Dispenser | next: 1, last: 1 > . 
+
+
+
+---                ____________________
+--- --\__/--\__/--[       Search      ]--\__/--\__/--
+--- search initial(1) =>* [[< D 1 : Dispenser | next: 1, last: 1 > < P 1 : BProcess | mode: crit, number: 1 > ]] .
