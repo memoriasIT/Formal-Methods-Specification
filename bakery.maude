@@ -72,7 +72,8 @@ mod BAKERY is
     var  Pid      : ProcessId .
     vars X Y Z    : Nat .
     var Atts      : AttributeSet .
-
+    var C         : Configuration . 
+    var m         : Mode .
     --- Operación para crear sistemas con un número cualquiera de procesos
     ---     Default: Dispenser.next = Dispenser.last = 1
     op initialAux : Nat -> Configuration .
@@ -82,6 +83,13 @@ mod BAKERY is
     op initial : Nat -> GBState .
     eq initial (X) = [[ initialAux(X) ]] .
 
+    --- 
+    op critCount : GBState -> Nat .
+    eq critCount ([[< Did : Dispenser | next: X, last: Y >]]) = 0 . 
+    eq critCount ([[ (< Pid : BProcess | mode: crit, number: X >) ]]) = 1 . 
+    eq critCount ([[ (< Pid : BProcess | mode: m, number: X >) ]]) = 0 . 
+    eq critCount ([[ (< Pid : BProcess | mode: crit, number: X >) C ]]) = 1 + critCount ([[C]]) . 
+    eq critCount ([[ (< Pid : BProcess | mode: m, number: X >) C ]]) = critCount ([[C]]) . 
 
     --- R  @ RULES @  _  @ RULES @ R      
     --- U  _ _  _  _ | | ___  ___  U
@@ -92,8 +100,8 @@ mod BAKERY is
     --- BProcess: sleep -> wait
     ---     Se toma el número de orden disponible (last) en el dispatcher (Dispenser)
     ---     Dispenser.last++
-    rl [wake-up] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: sleep, number: Z > 
-    =>  < Did : Dispenser | next: X, last: s Y > < Pid : BProcess | mode: wait, number: Z >  .
+    rl [wake-up] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: sleep, number:  s Z > 
+    =>  < Did : Dispenser | next: X, last: s Y > < Pid : BProcess | mode: wait, number: Y >  .
 
     --- BProcess.Id == Dispenser.next
     ---     BProcess: wait -> crit
@@ -106,9 +114,60 @@ mod BAKERY is
     rl [sleep] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: crit, number: Z > 
     =>  < Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: sleep, number: 0 > .
 
-
 endm
 
+mod ABSTRACT-BAKERY is 
+    including BAKERY .
+
+    var  Did      : DispenserId .
+    var  Pid      : ProcessId .
+    vars X Y N Z  : Nat .
+    var C         : Configuration . 
+    var m         : Mode .
+
+    op restaAux : Nat Configuration -> Configuration .
+    eq restaAux(N, none) = none .
+    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z >) C) =  < Pid : BProcess | mode: m, number: Z > restaAux(N, C)
+        if m == sleep .
+    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z >)) =  < Pid : BProcess | mode: m, number: Z > 
+        if m == sleep .    
+    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z >)) =  < Pid : BProcess | mode: m, number: sd(Z,N) > 
+        if m =/= sleep .
+    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z > C)) =  < Pid : BProcess | mode: m, number: sd(Z,N) > restaAux(N, C) 
+        if m =/= sleep .
+
+
+    op noDispensers : Configuration -> Bool .
+    eq noDispensers (< Pid : BProcess | mode: m, number: Z >) = true . 
+    eq noDispensers (< Did : Dispenser | next: X, last: Y > C) = false .
+    eq noDispensers (< Pid : BProcess | mode: m, number: Z > C) = true and noDispensers (C) . 
+
+
+    --- rl [sleep] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: crit, number: Z > C
+    --- => abstract(< Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: sleep, number: 0 > C) .
+
+    rl [simplify] : [[< Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C]]
+    =>    [[abstract( < Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C)]] .
+
+    
+    --- Abstracción: decrementando en uno los números de orden de todos los procesos (los que no
+    --- estén en modo sleep, que tendrán número de orden 0), siempre que el valor de next sea mayor que 1
+    op abstract : Configuration -> Configuration . 
+    eq abstract (< Did : Dispenser | next: 1, last: Y > C) = (< Did : Dispenser | next: 1, last: Y > C) .
+    ceq abstract(< Did : Dispenser | next: X, last: Y > C)
+        = < Did : Dispenser | next: sd(X,1), last: sd(Y, 1) > restaAux(1 , C)
+        if X > 1 and noDispensers(C) .
+
+
+    --- ceq [[(< Did : Dispenser | next: X, last: Y > C)]] 
+        --- = [[< Did : Dispenser | next: sd(X,Y), last: sd(X,Y) > restaAux(Y , C)]] 
+        --- if X > 1 and noDispensers(C) .
+
+    --- search initial(5) =>* [[ < (Pid : BProcess | mode: (m:Mode), number: (N:Nat) > < Did : Dispenser | next: (N:Nat), last: (N:Nat) > C:Configuration)]] . 
+    --- search ( < P 1 : BProcess | mode: wait, number: 3 > < Did : Dispenser | next: 3, last: 2 > ) =>* C:Configuration . 
+
+
+endm
 
 eof
 
