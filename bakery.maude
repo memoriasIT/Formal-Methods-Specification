@@ -169,6 +169,42 @@ mod ABSTRACT-BAKERY is
 
 endm
 
+load model-checker.maude
+mod BAKERY-PREDS is
+    protecting ABSTRACT-BAKERY .
+    including SATISFACTION .
+    
+    subsort GBState < State .
+
+    var GB : GBState .
+
+    op mutex : -> Prop .
+    --- eq critCount (GB) == 1 |= mutex (GB) = true .
+    ceq GB |= mutex = true if critCount(GB) <= 1 .
+
+
+    --- eq [[]] C |= mutex() = true .
+
+
+    --- op phil-status : Nat/{P} Status -> Prop .
+    --- op phil-sticks : Nat/{P} Nat -> Prop .
+
+    --- vars N I : Nat .
+    --- var S : Status .
+    --- var C : Configuration .
+    --- eq philosopher([I], S, N) C |= phil-status([I], S) = true .
+    --- eq philosopher([I], S, N) C |= phil-sticks([I], N) = true .
+
+
+
+endm 
+
+mod BAKERY-CHECK is
+    protecting BAKERY-PREDS .
+    including MODEL-CHECKER .
+    including LTL-SIMPLIFIER .
+endm
+
 eof
 
 ---  ____  ____  _  _   __  
