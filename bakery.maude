@@ -143,12 +143,11 @@ mod ABSTRACT-BAKERY is
     eq noDispensers (< Pid : BProcess | mode: m, number: Z > C) = true and noDispensers (C) . 
 
 
-    --- rl [sleep] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: crit, number: Z > C
-    --- => abstract(< Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: sleep, number: 0 > C) .
+    --- rl [simplify] : [[< Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C]]
+    --- =>    [[abstract( < Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C)]] .
 
-    rl [simplify] : [[< Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C]]
-    =>    [[abstract( < Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C)]] .
-
+    eq [[< Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C]]
+        = [[abstract( < Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C)]] .
     
     --- Abstracción: decrementando en uno los números de orden de todos los procesos (los que no
     --- estén en modo sleep, que tendrán número de orden 0), siempre que el valor de next sea mayor que 1
@@ -157,6 +156,7 @@ mod ABSTRACT-BAKERY is
     ceq abstract(< Did : Dispenser | next: X, last: Y > C)
         = < Did : Dispenser | next: sd(X,1), last: sd(Y, 1) > restaAux(1 , C)
         if X > 1 and noDispensers(C) .
+
 
 
     --- ceq [[(< Did : Dispenser | next: X, last: Y > C)]] 
@@ -169,41 +169,46 @@ mod ABSTRACT-BAKERY is
 
 endm
 
-load model-checker.maude
-mod BAKERY-PREDS is
-    protecting ABSTRACT-BAKERY .
-    including SATISFACTION .
+--- load model-checker.maude
+--- mod BAKERY-PREDS is
+---     protecting ABSTRACT-BAKERY .
+---     including SATISFACTION .
     
-    subsort GBState < State .
+---     subsort GBState < State .
 
-    var GB : GBState .
+---     var GB : GBState .
 
-    op mutex : -> Prop .
-    --- eq critCount (GB) == 1 |= mutex (GB) = true .
-    ceq GB |= mutex = true if critCount(GB) <= 1 .
+---     op mutex : -> Prop .
+---     op process : Mode Nat -> Prop .
+---     ceq GB |= mutex = true if critCount(GB) <= 1 .
+    
+---   ---  ceq Dispensador(n, s s l) proceso(mode, number) Conjunto |= process(mode, number) = true if s s l > number .
 
+---   ---  l >= s s number
 
-    --- eq [[]] C |= mutex() = true .
+    
+---     --- op phil-status : Nat/{P} Status -> Prop .
+---     --- op phil-sticks : Nat/{P} Nat -> Prop .
 
+---     --- vars N I : Nat .
+---     --- var S : Status .
+---     --- var C : Configuration .
+---     --- eq philosopher([I], S, N) C |= phil-status([I], S) = true .
+---     --- eq philosopher([I], S, N) C |= phil-sticks([I], N) = true .
+--- --- red modelCheck(initial(5), [] ~(P1(, 1) /\ phil-sticks([1], 1) /\ phil-sticks([2], 1) /\ phil-sticks([3], 1) /\ 
+--- --- phil-sticks([4], 1))) .
+--- --- red modelCheck(initial(5), [] ~(D 0 (n, s s l) /\ P 1(m1, l1) /\ P 2(m2, l2) /\ P 3(m3, l3) /\ P 4(m4, l4) /\ 
+--- --- P 5(m5, l5))) .
 
-    --- op phil-status : Nat/{P} Status -> Prop .
-    --- op phil-sticks : Nat/{P} Nat -> Prop .
+--- --- if l1 or l2 or l3 < s s l
 
-    --- vars N I : Nat .
-    --- var S : Status .
-    --- var C : Configuration .
-    --- eq philosopher([I], S, N) C |= phil-status([I], S) = true .
-    --- eq philosopher([I], S, N) C |= phil-sticks([I], N) = true .
+--- endm 
 
-
-
-endm 
-
-mod BAKERY-CHECK is
-    protecting BAKERY-PREDS .
-    including MODEL-CHECKER .
-    including LTL-SIMPLIFIER .
-endm
+--- mod BAKERY-CHECK is
+---     protecting BAKERY-PREDS .
+---     including MODEL-CHECKER .
+---     including LTL-SIMPLIFIER .
+--- endm
 
 eof
 
