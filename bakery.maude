@@ -120,7 +120,6 @@ mod BAKERY is
 
 endm
 
-
 ---  ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ 
 --- ||A |||b |||s |||t |||r |||a |||c |||c |||i |||ó |||n ||
 --- ||__|||__|||__|||__|||__|||__|||__|||__|||__|||__|||__||
@@ -213,6 +212,52 @@ mod BAKERY-CHECK is
     protecting BAKERY-PREDS .
     including MODEL-CHECKER .
     including LTL-SIMPLIFIER .
+endm
+
+mod BAKERY+ is 
+    extending BAKERY . 
+    including CONFIGURATION .
+
+    var  Did      : DispenserId .
+    var  Pid      : ProcessId .
+    var  Proc     : BProcess . 
+    vars X Y Z    : Nat .
+    var  mode     : Mode .
+    var  C        : Configuration . 
+
+    op isNextPossible : Nat Configuration -> Bool .
+    eq  isNextPossible (X, none) = true .
+    ceq isNextPossible (X, < Pid : BProcess | mode: mode, number: Z >) = true if X == Z .
+    ceq isNextPossible (X, < Pid : BProcess | mode: mode, number: Z >) = false if X =/= Z .
+    eq  isNextPossible (X, < Pid : BProcess | mode: mode, number: Z > C) = isNextPossible(X, < Pid : BProcess | mode: mode, number: Z >) or isNextPossible(X, C) . 
+
+    op isFinished : Configuration -> Bool .
+    eq  isFinished (none) = true .
+    eq  isFinished (< Pid : BProcess | mode: sleep, number: Z >)    = true .
+    ceq isFinished (< Pid : BProcess | mode: mode, number: Z >)     = false if mode == wait or mode == crit .
+    eq  isFinished (< Pid : BProcess | mode: mode, number: Z > C)   = isFinished(< Pid : BProcess | mode: mode, number: Z >) and isFinished(C) . 
+
+    
+    rl [leave] : < Pid : BProcess | mode: wait, number: Z >  =>  < Pid : BProcess | mode: sleep, number: 0 > . 
+
+    crl [next] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: mode, number: Z > C => < Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: mode, number: Z > C
+        if isNextPossible(X, < Pid : BProcess | mode: mode, number: Z > C) == false and isFinished(< Pid : BProcess | mode: mode, number: Z > C) == false .
+endm 
+
+
+---  ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ _________ ____ 
+--- ||A |||b |||s |||t |||r |||a |||c |||c |||i |||ó |||n |||       |||+ ||
+--- ||__|||__|||__|||__|||__|||__|||__|||__|||__|||__|||__|||_______|||__||
+--- |/__\|/__\|/__\|/__\|/__\|/__\|/__\|/__\|/__\|/__\|/__\|/_______\|/__\|
+
+mod ABSTRACT-BAKERY+ is 
+    including BAKERY+ .
+
+    var  Did      : DispenserId .
+    vars X Y Z    : Nat .
+
+    --- Abstracción +
+    eq < Did : Dispenser | next: s s X, last: Y > = < Did : Dispenser | next: s X, last: Y > .
 endm
 
 eof
