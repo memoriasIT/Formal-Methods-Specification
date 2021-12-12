@@ -252,12 +252,35 @@ endm
 
 mod ABSTRACT-BAKERY+ is 
     including BAKERY+ .
-
     var  Did      : DispenserId .
-    vars X Y Z    : Nat .
+    vars N L PN T   : Nat .
+    vars  Pid1  Pid2  Pid  : ProcessId .
+    var  Proc     : BProcess . 
+    vars  mode mode1 mode2     : Mode .
+    var  C        : Configuration . 
 
     --- Abstracción +
-    eq < Did : Dispenser | next: s s X, last: Y > = < Did : Dispenser | next: s X, last: Y > .
+    ---ceq < Did : Dispenser | next: N, last: L > C = < Did : Dispenser | next: s X, last: Y > 
+    ---if N > 1 or procesosNoNumerados(C) or L > s procesosConTickets(C) .
+    
+    op procesosMenoresOIguales : Nat Configuration -> Nat . 
+    eq procesosMenoresOIguales(N, none) = 0 . 
+    eq procesosMenoresOIguales(N, < Did : Dispenser | next: PN, last: L > C) = procesosMenoresOIguales(N, C) . 
+    eq procesosMenoresOIguales(N, < Pid : BProcess | mode: mode, number: PN > C) = if PN <= N and N > 0 and PN > 0  then s (procesosMenoresOIguales(N,C)) else procesosMenoresOIguales(N,C) fi . 
+---    op procesosNoNumerados : Configuration -> Bool . 
+---    eq procesosNoNumerados (none) = true .
+---    eq procesosNoNumerados (< Pid1 : BProcess | mode: mode1, number: PN >) = true . 
+---    ceq procesosNoNumerados (< Pid1 : BProcess | mode: mode1, number: PN > < Pid2 : BProcess | mode: mode2, number: T >) = false if PN > T . 
+---    ceq procesosNoNumerados (< Pid1 : BProcess | mode: mode1, number: PN > < Pid2 : BProcess | mode: mode2, number: T >) = true  if PN < T . 
+---    ceq procesosNoNumerados (< Pid1 : BProcess | mode: mode1, number: PN > < Pid2 : BProcess | mode: mode2, number: T > C) = false and procesosNoNumerados(C) if PN > T . 
+---    ceq procesosNoNumerados (< Pid1 : BProcess | mode: mode1, number: PN > < Pid2 : BProcess | mode: mode2, number: T > C) = true and procesosNoNumerados(C) if PN < T . 
+
+    op procesosConTickets : Configuration -> Nat .
+    eq procesosConTickets (none) = 0 . 
+    eq procesosConTickets (< Did : Dispenser | next: N, last: L > C) = procesosConTickets(C) . 
+    eq procesosConTickets (< Pid : BProcess | mode: mode, number: s PN >) = 1 . 
+    ceq procesosConTickets (< Pid : BProcess | mode: mode, number: PN > C ) = s (procesosConTickets (C)) if PN > 0 .
+    ceq procesosConTickets (< Pid : BProcess | mode: mode, number: PN > C ) = procesosConTickets(C) if PN == 0 . 
 endm
 
 eof
