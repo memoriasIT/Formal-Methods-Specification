@@ -214,6 +214,9 @@ mod BAKERY-CHECK is
     including LTL-SIMPLIFIER .
 endm
 
+
+
+
 mod BAKERY+ is 
     extending BAKERY . 
     including CONFIGURATION .
@@ -225,6 +228,12 @@ mod BAKERY+ is
     var  mode     : Mode .
     var  C        : Configuration . 
 
+--- op isInCritSection : Configuration -> Bool .
+    --- eq isInCritSection (none) = false .
+    --- eq isInCritSection (< Did : Dispenser | next: X, last: Y >) = false .  
+    --- eq isInCritSection (< Pid : BProcess | mode: crit, number: X > C)  = true . 
+    --- ceq isInCritSection (< Pid : BProcess | mode: mode, number: X > C ) = false and isInCritSection (C) if mode == sleep or mode == wait . 
+--- There is an inmediate next proccess 
     op isNextPossible : Nat Configuration -> Bool .
     eq  isNextPossible (X, none) = false .
     ceq isNextPossible (X, < Pid : BProcess | mode: mode, number: Z >) = false if mode == sleep or mode == crit .
@@ -232,18 +241,23 @@ mod BAKERY+ is
     ceq isNextPossible (X, < Pid : BProcess | mode: wait, number: Z >) = false if X =/= Z .
     eq  isNextPossible (X, < Pid : BProcess | mode: mode, number: Z > C) = isNextPossible(X, < Pid : BProcess | mode: mode, number: Z >) or isNextPossible(X, C) . 
 
-    --- op isFinished : Configuration -> Bool .
-    --- eq  isFinished (none) = true .
-    --- eq  isFinished (< Pid : BProcess | mode: sleep, number: Z >)    = true .
-    --- ceq isFinished (< Pid : BProcess | mode: mode, number: Z >)     = false if mode == wait or mode == crit .
-    --- eq  isFinished (< Pid : BProcess | mode: mode, number: Z > C)   = isFinished(< Pid : BProcess | mode: mode, number: Z >) and isFinished(C) . 
+    op anyWaiting : Configuration -> Bool .
+    eq  anyWaiting (none) = false .
+    eq  anyWaiting (< Pid : BProcess | mode: wait, number: Z >)     = true .
+    ceq anyWaiting (< Pid : BProcess | mode: mode, number: Z >)     = false if mode == sleep or mode == crit .
+    eq  anyWaiting (< Pid : BProcess | mode: mode, number: Z > C)   = anyWaiting(< Pid : BProcess | mode: mode, number: Z >) or anyWaiting(C) . 
 
     op isProcessWithBiggerNumber : Nat Configuration -> Bool .
     eq isProcessWithBiggerNumber(T, none) = false .
-    ceq isProcessWithBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = true or isProcessWithBiggerNumber(T, C) if T < Z . 
-    ceq isProcessWithBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = isProcessWithBiggerNumber(T, C) if T > Z .
-    eq isProcessWithBiggerNumber (T, < Did : Dispenser | next: X, last: Y > C) = isProcessWithBiggerNumber(T, C) .
+    ceq isProcessWithBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = true  or isProcessWithBiggerNumber(T, C) if T < Z . 
+    ceq isProcessWithBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = false or isProcessWithBiggerNumber(T, C) if T > Z .
+    eq isProcessWithBiggerNumber (T, < Did : Dispenser | next: X, last: Y > C)       = isProcessWithBiggerNumber(T, C) . --- NullCheck
     
+    op anyWaitingAndBiggerNumber : Nat Configuration -> Bool .
+    eq anyWaitingAndBiggerNumber(T, none) = false .
+    ceq anyWaitingAndBiggerNumber(T, (< Pid : BProcess | mode: wait, number: Z > C)) = true  or anyWaitingAndBiggerNumber(T, C) if T < Z . 
+    ceq anyWaitingAndBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = false or anyWaitingAndBiggerNumber(T, C) if mode == sleep or mode == crit .
+
     rl [leave] : < Pid : BProcess | mode: wait, number: Z >  =>  < Pid : BProcess | mode: sleep, number: 0 > . 
 
     op critCount2 : Configuration -> Nat .
@@ -251,10 +265,13 @@ mod BAKERY+ is
     eq critCount2 (< Did : Dispenser | next: X, last: Y >) = 0 .  
     eq critCount2 (< Pid : BProcess | mode: crit, number: X > C)  = 1 + critCount2 (C) . 
     ceq critCount2 (< Pid : BProcess | mode: mode, number: X > C ) = critCount2 (C) if mode == sleep or mode == wait . 
-  
+
     crl [next] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: mode, number: Z > C => < Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: mode, number: Z > C
-        --- if isNextPossible(X, < Pid : BProcess | mode: mode, number: Z > C) == false and isFinished(< Pid : BProcess | mode: mode, number: Z > C) == false .
-        if isNextPossible(X, < Pid : BProcess | mode: mode, number: Z > C) == false and isProcessWithBiggerNumber(X, < Pid : BProcess | mode: mode, number: Z > C) == true and critCount2(< Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: mode, number: Z > C) == 0 .
+        if ((critCount2(< Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: mode, number: Z > C) == 0) and (anyWaitingAndBiggerNumber(X, < Pid : BProcess | mode: mode, number: Z > C) == true) and (isNextPossible(X, < Pid : BProcess | mode: mode, number: Z > C) == false)) . --- No processes in crit section
+
+        --- and Z <= Y
+        --- and anyWaiting(< Pid : BProcess | mode: mode, number: Z > C) == true        --- There is at least one process not sleeping
+        --- and isProcessWithBiggerNumber(X, < Pid : BProcess | mode: mode, number: Z > C) == true  --- There is at least one with a bigger number
 endm  
 
 
