@@ -82,7 +82,7 @@ mod BAKERY is
     ---     Default: Dispenser.next = Dispenser.last = 1
     op initialAux : Nat -> Configuration .
     eq initialAux (0) = < D 0 : Dispenser | next: 1, last: 1 >  .
-    eq initialAux (s X) = (< P  (s X) : BProcess | mode: sleep, number: (s X) >) (initialAux(X)) .
+    eq initialAux (s X) = (< P  (s X) : BProcess | mode: sleep, number: 0 >) (initialAux(X)) .
 
     op initial : Nat -> GBState .
     eq initial (X) = [[ initialAux(X) ]] .
@@ -104,7 +104,7 @@ mod BAKERY is
     --- BProcess: sleep -> wait
     ---     Se toma el número de orden disponible (last) en el dispatcher (Dispenser)
     ---     Dispenser.last++
-    rl [wake-up] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: sleep, number:  s Z > 
+    rl [wake-up] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: sleep, number: 0 > 
     =>  < Did : Dispenser | next: X, last: s Y > < Pid : BProcess | mode: wait, number: Y >  .
 
     --- BProcess.Id == Dispenser.next
@@ -176,6 +176,7 @@ mod ABSTRACT-BAKERY is
         = [[abstract( < Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C)]] .
 
     op abstract : Configuration -> Configuration . 
+    eq abstract(none) = none .
     eq abstract (< Did : Dispenser | next: 1, last: Y > C) = (< Did : Dispenser | next: 1, last: Y > C) .
     ceq abstract(< Did : Dispenser | next: X, last: Y > C)
         = < Did : Dispenser | next: sd(X,1), last: sd(Y, 1) > restaAux(1 , C)
@@ -214,12 +215,17 @@ mod BAKERY-CHECK is
     including LTL-SIMPLIFIER .
 endm
 
-
-
-
+--- Extensión del módulo BAKERY:
+--- El dispensador podrá pasar el turno (incrementar su next) si no hay ningún proceso 
+--- con dicho número de orden.
 mod BAKERY+ is 
     extending BAKERY . 
     including CONFIGURATION .
+
+    ---   / _ \ _ __ ___  O
+    ---  | (_) | '_ (_-<  P
+    ---   \___/| .__/__/  S
+    ---        |_|        ~  
 
     var  Did      : DispenserId .
     var  Pid      : ProcessId .
@@ -228,51 +234,57 @@ mod BAKERY+ is
     var  mode     : Mode .
     var  C        : Configuration . 
 
---- op isInCritSection : Configuration -> Bool .
-    --- eq isInCritSection (none) = false .
-    --- eq isInCritSection (< Did : Dispenser | next: X, last: Y >) = false .  
-    --- eq isInCritSection (< Pid : BProcess | mode: crit, number: X > C)  = true . 
-    --- ceq isInCritSection (< Pid : BProcess | mode: mode, number: X > C ) = false and isInCritSection (C) if mode == sleep or mode == wait . 
---- There is an inmediate next proccess 
-    op isNextPossible : Nat Configuration -> Bool .
-    eq  isNextPossible (X, none) = false .
-    ceq isNextPossible (X, < Pid : BProcess | mode: mode, number: Z >) = false if mode == sleep or mode == crit .
-    ceq isNextPossible (X, < Pid : BProcess | mode: wait, number: Z >) = true if X == Z .
-    ceq isNextPossible (X, < Pid : BProcess | mode: wait, number: Z >) = false if X =/= Z .
-    eq  isNextPossible (X, < Pid : BProcess | mode: mode, number: Z > C) = isNextPossible(X, < Pid : BProcess | mode: mode, number: Z >) or isNextPossible(X, C) . 
+    --- Devuelve true si hay un proceso inmediatamente siguiente 
+    op noProcessWithNumber : Nat Configuration -> Bool .
+    eq  noProcessWithNumber (X, none) = true .
+    ceq noProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = false if X == Z .
+    ceq noProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = true if X =/= Z .
+    eq  noProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z > C) = noProcessWithNumber(X, < Pid : BProcess | mode: mode, number: Z >) and noProcessWithNumber(X, C) . 
 
-    op anyWaiting : Configuration -> Bool .
-    eq  anyWaiting (none) = false .
-    eq  anyWaiting (< Pid : BProcess | mode: wait, number: Z >)     = true .
-    ceq anyWaiting (< Pid : BProcess | mode: mode, number: Z >)     = false if mode == sleep or mode == crit .
-    eq  anyWaiting (< Pid : BProcess | mode: mode, number: Z > C)   = anyWaiting(< Pid : BProcess | mode: mode, number: Z >) or anyWaiting(C) . 
-
-    op isProcessWithBiggerNumber : Nat Configuration -> Bool .
-    eq isProcessWithBiggerNumber(T, none) = false .
-    ceq isProcessWithBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = true  or isProcessWithBiggerNumber(T, C) if T < Z . 
-    ceq isProcessWithBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = false or isProcessWithBiggerNumber(T, C) if T > Z .
-    eq isProcessWithBiggerNumber (T, < Did : Dispenser | next: X, last: Y > C)       = isProcessWithBiggerNumber(T, C) . --- NullCheck
+    --- Devuelve el número de procesos en sección crítica
+    op critCountPlus : Configuration -> Nat .
+    eq critCountPlus (none) = 0 .
+    eq critCountPlus (< Did : Dispenser | next: X, last: Y >) = 0 .  
+    eq critCountPlus (< Pid : BProcess | mode: crit, number: X > C)  = 1 + critCountPlus (C) . 
+    ceq critCountPlus (< Pid : BProcess | mode: mode, number: X > C ) = critCountPlus (C) if mode == sleep or mode == wait . 
     
-    op anyWaitingAndBiggerNumber : Nat Configuration -> Bool .
-    eq anyWaitingAndBiggerNumber(T, none) = false .
-    ceq anyWaitingAndBiggerNumber(T, (< Pid : BProcess | mode: wait, number: Z > C)) = true  or anyWaitingAndBiggerNumber(T, C) if T < Z . 
-    ceq anyWaitingAndBiggerNumber(T, (< Pid : BProcess | mode: mode, number: Z > C)) = false or anyWaitingAndBiggerNumber(T, C) if mode == sleep or mode == crit .
+    --- Devuelve el número de procesos en espera
+    op waitingCountPlus : Configuration -> Nat .
+    eq waitingCountPlus (none) = 0 .
+    eq waitingCountPlus (< Did : Dispenser | next: X, last: Y >) = 0 .  
+    eq waitingCountPlus (< Pid : BProcess | mode: wait, number: X > C)  = 1 + waitingCountPlus (C) . 
+    ceq waitingCountPlus (< Pid : BProcess | mode: mode, number: X > C ) = waitingCountPlus (C) if mode == sleep or mode == crit . 
 
+    --- R  @ RULES @  _  @ RULES @ R      
+    --- U  _ _  _  _ | | ___  ___  U
+    --- L | '_|| || || |/ -_)(_-<  L
+    --- E |_|   \_,_||_|\___|/__/  E
+    --- S  @ RULES @    @ RULES @  S    
+
+    --- Un proceso puede abandonar la cola en cualquier momento
     rl [leave] : < Pid : BProcess | mode: wait, number: Z >  =>  < Pid : BProcess | mode: sleep, number: 0 > . 
 
-    op critCount2 : Configuration -> Nat .
-    eq critCount2 (none) = 0 .
-    eq critCount2 (< Did : Dispenser | next: X, last: Y >) = 0 .  
-    eq critCount2 (< Pid : BProcess | mode: crit, number: X > C)  = 1 + critCount2 (C) . 
-    ceq critCount2 (< Pid : BProcess | mode: mode, number: X > C ) = critCount2 (C) if mode == sleep or mode == wait . 
+    --- El dispensador (dispatcher) puede pasar al siguiente número si no existe un proceso siguiente
+    crl [next] : [[ < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: mode, number: Z > C ]]
+      => [[ < Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: mode, number: Z > C ]]
+        if (noProcessWithNumber(X, < Pid : BProcess | mode: mode, number: Z > C) == true 
+        and (waitingCountPlus(< Pid : BProcess | mode: mode, number: Z > C) > 0)) .
+        --- and (critCountPlus(< Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: wait, number: Z > C) == 0)) .
 
-    crl [next] : < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: mode, number: Z > C => < Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: mode, number: Z > C
-        if ((critCount2(< Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: mode, number: Z > C) == 0) and (anyWaitingAndBiggerNumber(X, < Pid : BProcess | mode: mode, number: Z > C) == true) and (isNextPossible(X, < Pid : BProcess | mode: mode, number: Z > C) == false)) . --- No processes in crit section
-
-        --- and Z <= Y
-        --- and anyWaiting(< Pid : BProcess | mode: mode, number: Z > C) == true        --- There is at least one process not sleeping
-        --- and isProcessWithBiggerNumber(X, < Pid : BProcess | mode: mode, number: Z > C) == true  --- There is at least one with a bigger number
 endm  
+
+--- [[< D 0 : Dispenser | next: 1,last: 1 > 
+--- < P 1 : BProcess | mode: sleep,number: 1 > 
+--- < P 2 : BProcess | mode: sleep,number: 2 > 
+--- < P 3 : BProcess | mode: sleep,number: 3 > 
+--- < P 4 : BProcess | mode: sleep,number: 4 > 
+--- < P 5 : BProcess | mode: wait,number: 5 >]]
+
+--- [[< D 0 : Dispenser | next: 1,last: 1 > < P 1 : BProcess | mode: sleep,number: 1 > < P 2 : BProcess | mode: sleep,number: 2 > < P 3 : BProcess | mode: sleep,number: 3 > < P 4 : BProcess | mode: sleep,number: 4 > < P 5 : BProcess | mode: wait,number: 5 >]]
+--- [[< D 0 : Dispenser | next: 2,last: 1 > < P 1 : BProcess | mode: sleep,number: 1 > < P 2 : BProcess | mode: sleep,number: 2 > < P 3 : BProcess | mode: sleep,number: 3 > < P 4 : BProcess | mode: sleep,number: 4 > < P 5 : BProcess | mode: wait,number: 5 >]]
+
+
+--- [[< D 0 : Dispenser | next: 6,last: 6 > < P 1 : BProcess | mode: sleep,number: 0 > < P 2 : BProcess | mode: sleep,number: 0 > < P 3 : BProcess | mode: sleep,number: 0 > < P 4 : BProcess | mode: sleep,number: 0 > < P 5 : BProcess | mode: wait,number: 0 >]]
 
 
 ---  ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ _________ ____ 
@@ -282,20 +294,15 @@ endm
 
 mod ABSTRACT-BAKERY+ is 
     including BAKERY+ .
-    var  Did      : DispenserId .
-    vars N L PN T   : Nat .
-    vars  Pid1  Pid2  Pid  : ProcessId .
-    var  Proc     : BProcess . 
-    vars  mode mode1 mode2 m    : Mode .
-    var  C        : Configuration . 
 
+    var  Did                    : DispenserId .
+    vars N L PN T               : Nat .
+    vars Pid1  Pid2  Pid       : ProcessId .
+    var  Proc                   : BProcess . 
+    vars mode mode1 mode2 m    : Mode .
+    var  C                      : Configuration . 
+    vars X Y Z                  : Nat .
 
-    vars X Y Z  : Nat .
-
-    --- Abstracción +
-    ---ceq < Did : Dispenser | next: N, last: L > C = < Did : Dispenser | next: s X, last: Y > 
-    ---if N > 1 or procesosNoNumerados(C) or L > s procesosConTickets(C) .
-    
     op procesosMenoresOIguales : Nat Configuration -> Nat . 
     eq procesosMenoresOIguales(N, none) = 0 . 
     eq procesosMenoresOIguales(N, < Did : Dispenser | next: PN, last: L > C) = procesosMenoresOIguales(N, C) . 
