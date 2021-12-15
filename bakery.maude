@@ -87,7 +87,7 @@ mod BAKERY is
     op initial : Nat -> GBState .
     eq initial (X) = [[ initialAux(X) ]] .
 
-    --- 
+    --- Devuelve el número de procesos en estado crítico
     op critCount : GBState -> Nat .
     eq critCount ([[< Did : Dispenser | next: X, last: Y >]]) = 0 . 
     eq critCount ([[ (< Pid : BProcess | mode: crit, number: X >) ]]) = 1 . 
@@ -156,28 +156,25 @@ mod ABSTRACT-BAKERY is
     ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z > C)) =  < Pid : BProcess | mode: m, number: sd(Z,N) > restaAux(N, C) 
         if m =/= sleep .
 
-    --- Operación auxiliar para comprobar que no hay dispensadores en una configuración determinada
-    --- Argumentos: 
-    ---     Lista de configuraciones    : Configuration 
-    op noDispensers : Configuration -> Bool .
-    eq noDispensers (< Pid : BProcess | mode: m, number: Z >) = true . 
-    eq noDispensers (< Did : Dispenser | next: X, last: Y > C) = false .
-    eq noDispensers (< Pid : BProcess | mode: m, number: Z > C) = true and noDispensers (C) . 
-
     --- Abstracción: decrementando en uno los números de orden de todos los procesos (los que no
     --- estén en modo sleep, que tendrán número de orden 0), siempre que el valor de next sea mayor que 1
 
+    --- Returns max number in the processes
+    op maxNumber : Configuration -> Nat .
+    eq maxNumber (none) = 0 .
+    eq maxNumber (< Pid : BProcess | mode: m, number: Z >)  = Z . 
+    eq maxNumber (< Pid : BProcess | mode: m, number: Z > C ) = max(Z, maxNumber(C)) . 
+
     --- Ecuación que permite la abstracción
     ceq [[< Did : Dispenser | next: X, last: Y > C]]
-        = [[< Did : Dispenser | next: 1, last: s(sd (X,Y)) > restaAux(sd(X,1), C)]]
+        = [[< Did : Dispenser | next: 1, last: s(maxNumber(restaAux(sd(X,1), C))) > restaAux(sd(X,1), C)]]
         if X > 1 .
 
-    op abstract : Configuration -> Configuration . 
-    eq abstract(none) = none .
-    eq abstract (< Did : Dispenser | next: 1, last: Y > C) = (< Did : Dispenser | next: 1, last: Y > C) .
-    ceq abstract(< Did : Dispenser | next: X, last: Y > C)
-        = < Did : Dispenser | next: sd(X,1), last: sd(Y, 1) > restaAux(1 , C)
-        if X > 1 and noDispensers(C) .
+    --- TEST de la regla
+    --- [[< D 0 : Dispenser | next: 3,last: 4 > < P 1 : BProcess | mode: sleep,number: 0 > < P 2 : BProcess | mode: sleep,number: 0 > < P 3 : BProcess | mode: wait,number: 3 > < P 4 : BProcess | mode: wait,number: 4 > < P 5 : BProcess | mode: sleep,number: 0 >]]
+    --- [[< D 0 : Dispenser | next: 1,last: 3 > < P 1 : BProcess | mode: sleep,number: 0 > < P 2 : BProcess | mode: sleep,number: 0 > < P 3 : BProcess | mode: wait,number: 1 > < P 4 : BProcess | mode: wait,number: 2 > < P 5 : BProcess | mode: sleep,number: 0 >]]
+    
+    --- search in ABSTRACT-BAKERY : [[< D 0 : Dispenser | next: 3,last: 4 > < P 1 : BProcess | mode: sleep,number: 0 > < P 2 : BProcess | mode: sleep,number: 0 > < P 3 : BProcess | mode: wait,number: 3 > < P 4 : BProcess | mode: wait,number: 4 > < P 5 : BProcess | mode: sleep,number: 0 >]] =>* [[< D 0 : Dispenser | next: 1,last: 3 > < P 1 : BProcess | mode: sleep,number: 0 > < P 2 : BProcess | mode: sleep,number: 0 > < P 3 : BProcess | mode: wait,number: 1 > < P 4 : BProcess | mode: wait,number: 2 > < P 5 : BProcess | mode: sleep,number: 0 >]] . 
 
 endm
 
