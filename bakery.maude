@@ -7,7 +7,6 @@
 ---     Lorenzo V.S.   &&        __/ |
 ---        María G.M.           |___/ 
 
-load model-checker.maude
 
 mod BAKERY is
     protecting NAT .
@@ -177,6 +176,7 @@ mod ABSTRACT-BAKERY is
     --- search in ABSTRACT-BAKERY : [[< D 0 : Dispenser | next: 3,last: 4 > < P 1 : BProcess | mode: sleep,number: 0 > < P 2 : BProcess | mode: sleep,number: 0 > < P 3 : BProcess | mode: wait,number: 3 > < P 4 : BProcess | mode: wait,number: 4 > < P 5 : BProcess | mode: sleep,number: 0 >]] =>* [[< D 0 : Dispenser | next: 1,last: 3 > < P 1 : BProcess | mode: sleep,number: 0 > < P 2 : BProcess | mode: sleep,number: 0 > < P 3 : BProcess | mode: wait,number: 1 > < P 4 : BProcess | mode: wait,number: 2 > < P 5 : BProcess | mode: sleep,number: 0 >]] . 
 
 endm
+load model-checker.maude
 
 --- Módulo auxiliar para usar el model checker de maude
 mod BAKERY-PREDS is
@@ -184,21 +184,16 @@ mod BAKERY-PREDS is
     including SATISFACTION .
     
     --- Colección de objetos que modelan el sistema
-    subsort GBState < State .
+    subsort GBState < Configuration .
 
     --- VARIABLES 
-    var GB : GBState .
     var m : Mode .
     var Pid : ProcessId .
     var Z : Nat .
-    
-    --- Un proceso estará en mutex siempre que el número de procesos en la sección critca sea menor o igual a 1
-    op mutex : -> Prop .
-    ceq GB |= mutex = true if critCount(GB) <= 1 .
-    
+        
     --- Un proceso estará en dicho modo
     op processInMode : ProcessId Mode -> Prop . 
-    eq [[< Pid : BProcess | mode: m, number: Z >]] |= processInMode(Pid, m) = true . 
+    eq < Pid : BProcess | mode: m, number: Z > |= processInMode(Pid, m) = true . 
 
 endm 
 
@@ -212,7 +207,7 @@ endm
 --- Extensión del módulo BAKERY:
 --- El dispensador podrá pasar el turno (incrementar su next) si no hay ningún proceso 
 --- con dicho número de orden.
-mod BAKERY+ is 
+***( mod BAKERY+ is 
     extending BAKERY . 
     including CONFIGURATION .
 
@@ -361,7 +356,7 @@ mod ABSTRACT-BAKERY+ is
         = < Did : Dispenser | next: sd(N,1), last: sd(L, 1) > restaAux(1 , C)
         if N > 1 and noDispensers(C) .
 
-endm    
+endm     )
 
 eof
 
