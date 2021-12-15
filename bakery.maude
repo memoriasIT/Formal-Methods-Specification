@@ -151,12 +151,8 @@ mod ABSTRACT-BAKERY is
     ---     Lista de Procesos       : Configuration
     op restaAux : Nat Configuration -> Configuration .
     eq restaAux(N, none) = none .
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z >) C) =  < Pid : BProcess | mode: m, number: Z > restaAux(N, C)
-        if m == sleep .
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z >)) =  < Pid : BProcess | mode: m, number: Z > 
-        if m == sleep .    
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z >)) =  < Pid : BProcess | mode: m, number: sd(Z,N) > 
-        if m =/= sleep .
+    eq restaAux(N, (< Pid : BProcess | mode: m, number: 0 >) C) =  < Pid : BProcess | mode: m, number: 0 > restaAux(N, C).
+    eq restaAux(N, (< Did : Dispenser | next: X, last: Y >) C) = < Did : Dispenser | next: X, last: Y > restaAux(N,C) .  
     ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z > C)) =  < Pid : BProcess | mode: m, number: sd(Z,N) > restaAux(N, C) 
         if m =/= sleep .
 
@@ -172,8 +168,9 @@ mod ABSTRACT-BAKERY is
     --- estén en modo sleep, que tendrán número de orden 0), siempre que el valor de next sea mayor que 1
 
     --- Ecuación que permite la abstracción
-    eq [[< Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C]]
-        = [[abstract( < Did : Dispenser | next: s s X, last: Y > < Pid : BProcess | mode: m, number: Z > C)]] .
+    ceq [[< Did : Dispenser | next: X, last: Y > C]]
+        = [[< Did : Dispenser | next: 1, last: s(sd (X,Y)) > restaAux(sd(X,1), C)]]
+        if X > 1 .
 
     op abstract : Configuration -> Configuration . 
     eq abstract(none) = none .
