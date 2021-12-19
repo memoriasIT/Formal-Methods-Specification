@@ -105,13 +105,9 @@ mod ABSTRACT-BAKERY+ is
     ---     Lista de Procesos       : Configuration
     op restaAux : Nat Configuration -> Configuration .
     eq restaAux(N, none) = none .
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: PN >) C) =  < Pid : BProcess | mode: m, number: PN > restaAux(N, C)
-        if m == sleep .
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: PN >)) =  < Pid : BProcess | mode: m, number: PN > 
-        if m == sleep .    
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: PN >)) =  < Pid : BProcess | mode: m, number: sd(PN,N) > 
-        if m =/= sleep .
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: PN > C)) =  < Pid : BProcess | mode: m, number: sd(PN,N) > restaAux(N, C) 
+    eq restaAux(N, (< Pid : BProcess | mode: m, number: 0 >) C) =  < Pid : BProcess | mode: m, number: 0 > restaAux(N, C).
+    eq restaAux(N, (< Did : Dispenser | next: X, last: Y >) C) = < Did : Dispenser | next: X, last: Y > restaAux(N,C) .  
+    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z > C)) =  < Pid : BProcess | mode: m, number: sd(Z,N) > restaAux(N, C) 
         if m =/= sleep .
 
 
