@@ -99,42 +99,29 @@ mod ABSTRACT-BAKERY+ is
     var  C                      : Configuration . 
     vars X Y Z                  : Nat .
 
- --- Operación auxiliar para decrementar en N los números de orden para los procesos (parámetro "number")
-    --- Argumentos:
-    ---     Cantidad a decrementar  : Nat
-    ---     Lista de Procesos       : Configuration
-    op restaAux : Nat Configuration -> Configuration .
-    eq restaAux(N, none) = none .
-    eq restaAux(N, (< Pid : BProcess | mode: m, number: 0 >) C) =  < Pid : BProcess | mode: m, number: 0 > restaAux(N, C).
-    eq restaAux(N, (< Did : Dispenser | next: X, last: Y >) C) = < Did : Dispenser | next: X, last: Y > restaAux(N,C) .  
-    ceq restaAux(N, (< Pid : BProcess | mode: m, number: Z > C)) =  < Pid : BProcess | mode: m, number: sd(Z,N) > restaAux(N, C) 
-        if m =/= sleep .
 
+    --- Devuelve true si hay un proceso con numero
+    op ProcessWithNumber : Nat Configuration -> Bool .
+    eq  ProcessWithNumber (X, none) = false .
+    eq  ProcessWithNumber (X, < Did : Dispenser | next: Z, last: Y >) = false .  
+    ceq ProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = true if X == Z .
+    ceq ProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = false if X =/= Z .
+    eq  ProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z > C) = ProcessWithNumber(X, < Pid : BProcess | mode: mode, number: Z >) or ProcessWithNumber(X, C) . 
 
-    --- Abstracción: decrementando en uno los números de orden de todos los procesos (los que no
-    --- estén en modo sleep, que tendrán número de orden 0), siempre que el valor de next sea mayor que 1
-    op maxNumber : Configuration -> Nat .
-    eq maxNumber (none) = 0 .
-    eq maxNumber (< Pid : BProcess | mode: m, number: Z >)  = Z . 
-    eq maxNumber (< Pid : BProcess | mode: m, number: Z > C ) = max(Z, maxNumber(C)) . 
+    ceq [decProc] : < Pid : BProcess | mode: mode, number: X > C
+        = < Pid : BProcess | mode: mode, number: sd(X, 1) > C
+        if ProcessWithNumber(sd(X,1), C) = false and X > 1 .
 
-    op minNumberNotZero : Nat Configuration -> Nat .
-    eq minNumberNotZero  (X, none) = X .
-    ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z >)  = min(X, Z) if Z =/= 0 . 
-    ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z >)  = X if Z == 0 . 
-    ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z > C ) = minNumberNotZero(min(X, Z), C) if (Z > 0 and X =/= 0) .
-    ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z > C ) = minNumberNotZero(Z, C) if (Z > 0 and X == 0) .
-    ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z > C ) = minNumberNotZero(X, C) if (Z == 0) .
+    --- ceq [decDispLast] : < Did : Dispenser | next: X, last: Y > C
+    ---     = < Did : Dispenser | next: X, last: sd(Y,1) > C
+    ---     if ProcessWithNumber(sd(Y,1), C) = false and Y > 1 . 
 
+    --- ceq [decDispNext] : < Did : Dispenser | next: X, last: Y > C
+    ---     = < Did : Dispenser | next: sd(X,1), last: Y > C
+    ---     if ProcessWithNumber(X, C) = true and X > 1 .
 
-    op pred : Nat -> Nat .
-    eq pred (0) = 0 .
-    ceq pred (Z) = sd(Z,1) if Z > 1 . 
-
-    ceq [[< Did : Dispenser | next: X, last: Y > C]]
-    = [[< Did : Dispenser | next: 1, last: s(maxNumber(restaAux(sd(X,1), C))) > restaAux(pred(minNumberNotZero(0, C)), C)]]
-    if X > 1 .
-
+--- red ProcessWithNumber(2, < P 1 : BProcess | mode: wait,number: 1 > < P 2 : BProcess | mode: wait,number: 2 >) .
+--- red ProcessWithNumber(0, < P 1 : BProcess | mode: wait,number: 1 > < P 2 : BProcess | mode: wait,number: 2 >) .
 endm
 
 eof
