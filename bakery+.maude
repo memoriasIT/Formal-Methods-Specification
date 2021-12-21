@@ -102,26 +102,55 @@ mod ABSTRACT-BAKERY+ is
 
     --- Devuelve true si hay un proceso con numero
     op ProcessWithNumber : Nat Configuration -> Bool .
-    eq  ProcessWithNumber (X, none) = false .
+    eq  ProcessWithNumber (X, none) = true .
     eq  ProcessWithNumber (X, < Did : Dispenser | next: Z, last: Y >) = false .  
     ceq ProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = true if X == Z .
     ceq ProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = false if X =/= Z .
     eq  ProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z > C) = ProcessWithNumber(X, < Pid : BProcess | mode: mode, number: Z >) or ProcessWithNumber(X, C) . 
 
-    ceq [decProc] : < Pid : BProcess | mode: mode, number: X > C
-        = < Pid : BProcess | mode: mode, number: sd(X, 1) > C
-        if ProcessWithNumber(sd(X,1), C) = false and X > 1 .
+    op maxNumber : Configuration -> Nat .
+    eq maxNumber (none) = 0 .
+    eq maxNumber (< Pid : BProcess | mode: m, number: Z >)  = Z . 
+    eq maxNumber (< Pid : BProcess | mode: m, number: Z > C ) = max(Z, maxNumber(C)) .
 
-    --- ceq [decDispLast] : < Did : Dispenser | next: X, last: Y > C
-    ---     = < Did : Dispenser | next: X, last: sd(Y,1) > C
+    
+    ---Ecuacion que decrementa el numero de un proceso cuando no hay procesos anteriores esperando.
+    ceq ([[ < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: wait, number: Z > C]]) =
+     [[ < Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: wait, number: sd(Z, 1) > C]]
+             if ProcessWithNumber(sd(Z,1), C) = false and Z > 1 .
+
+    ---Ecuacion que decrementa el last del dispensador cuando no hay procesos mayores que dicho numero esperando.
+    ceq ([[< Did : Dispenser | next: X, last: Y > C]]) = [[< Did : Dispenser | next: X, last: sd(Y,1) > C]]
+        if ProcessWithNumber(sd(Y,1), C) = false and Y > 1 .
+    
+    --- Ecuacion que decrementa el next del dispensador y el numero del proceso cuando hay un proceso cuyo numero es igual al next.
+    ceq ([[< Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: wait, number: Z > C]]) = 
+    [[< Did : Dispenser | next: sd(X,1), last: Y > < Pid : BProcess | mode: wait, number: sd(Z,1) > C]]
+        if ProcessWithNumber(X, < Pid : BProcess | mode: wait, number: Z > C) = true and X > 1 and X == Z . 
+
+    --- Ecuacion que decrementa el next del dispensador y cuando el valor del next del dispensador es mayor que el proceso waiting con num mas alto.    
+    ceq ([[< Did : Dispenser | next: X, last: Y > C]]) = [[< Did : Dispenser | next: sd(X,1), last: Y > C]]
+        if ProcessWithNumber(X, C) = false and X > maxNumber(C) and X > 1 .
+    
+    ---ceq [decProcWaiting] : [[< Pid : BProcess | mode: wait, number: X > C]]
+    ---    = [[< Pid : BProcess | mode: wait, number: sd(X, 1) > C]]
+    ---   if ProcessWithNumber(sd(X,1), C) = false and X > 1 .
+
+    ---ceq [decDispLast] : [[< Did : Dispenser | next: X, last: Y > C]]
+    ---     = [[< Did : Dispenser | next: X, last: sd(Y,1) > C]]
     ---     if ProcessWithNumber(sd(Y,1), C) = false and Y > 1 . 
 
-    --- ceq [decDispNext] : < Did : Dispenser | next: X, last: Y > C
-    ---     = < Did : Dispenser | next: sd(X,1), last: Y > C
+    ---ceq [decDispNext] : [[< Did : Dispenser | next: X, last: Y > C]]
+    ---     = [[< Did : Dispenser | next: sd(X,1), last: Y > C]]
     ---     if ProcessWithNumber(X, C) = true and X > 1 .
 
 --- red ProcessWithNumber(2, < P 1 : BProcess | mode: wait,number: 1 > < P 2 : BProcess | mode: wait,number: 2 >) .
 --- red ProcessWithNumber(0, < P 1 : BProcess | mode: wait,number: 1 > < P 2 : BProcess | mode: wait,number: 2 >) .
+--- red ProcessWithNumber(1,< D 0 : Dispenser | next: 4,last: 6 >) .
+--- search [[< D 0 : Dispenser | next: 4,last: 5 > < P 2 : BProcess | mode: wait,number: 4 >]] =>* A:GBState .
+--- red random([[< D 0 : Dispenser | next: 4,last: 5 > < P 2 : BProcess | mode: wait,number: 4 >]]) .
+--- red random([[< D 0 : Dispenser | next: 2,last: 7 > < P 2 : BProcess | mode: wait,number: 4 >]]) .
+--- red random([[< D 0 : Dispenser | next: 9,last: 7 > < P 2 : BProcess | mode: wait,number: 4 >]]) .
 endm
 
 eof
