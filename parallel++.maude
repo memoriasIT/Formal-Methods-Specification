@@ -1,0 +1,77 @@
+load parallel.maude
+
+fmod MEMORY++ is 
+    including MEMORY . 
+    pr QID * (sort Qid to BQid, op qid to bqid) .
+
+    op [_,_] : BQid Bool -> Memory .
+    op _in_ : BQid Memory -> Bool? . ---- cell allocated for Q?
+
+    var B  : Bool .
+    var BQ : BQid .
+
+    eq BQ in [BQ, B] M = true .
+
+endfm
+
+fmod TESTS++ is
+    including TESTS . 
+    
+    op _=_  : BQid Bool -> Test .
+    op _>’_ : BQid Bool -> Test .
+
+    vars B B’ K’  : Bool .
+    var BQ : BQid .
+    
+    --- EQUALS
+    eq  eval(BQ = B, [BQ, B’] M) = B == B’ .
+
+    ceq eval(BQ = B, M) = B == 0 
+        if BQ in M =/= true .
+
+    --- GREATER THAN
+    eq  eval(BQ >’ B, [BQ, K’] M) = K’ > B .
+
+    ceq eval(BQ >’ B, M) = 0 > B 
+        if BQ in M =/= true .
+        
+    --- AND
+    eq  eval(T & T’, M) = eval(T, M) and eval(T’, M) .
+
+endfm 
+
+fmod EXPRESSION++ is 
+    including EXPRESSION . 
+    sort BExpression . 
+    subsorts BQid Bool < BExpression .
+
+    op eval : BExpression Memory -> Bool .
+    var Q : BQid . 
+    vars B B’ : Bool . 
+    vars BE BE’ : BExpression .
+
+    eq eval(B, M) = B .
+    eq eval(Q, [Q, B] M) = B . 
+   ceq eval(Q,M) = 0 if Q in M =/= true .
+    eq eval(BE +’ BE’, M) = eval(BE, M) + eval(BE’, M) .
+    eq eval(BE *’ BE’, M) = eval(BE, M) * eval(BE’, M) .
+    eq eval(BE -’ BE’, M) = eval(BE, M) - eval(BE’, M) .
+endfm
+
+
+fmod SEQUENTIAL++ is
+    including SEQUENTIAL . 
+    extending EXPRESSION++ . 
+
+    op _:=_ : BQid BExpression -> Program .
+    
+endfm
+
+mod PARALLEL++ is
+    including PARALLEL . 
+    inc SEQUENTIAL .
+    inc TESTS .
+    --- subsort Int < Pid .
+
+endm 
+
