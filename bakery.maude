@@ -186,14 +186,18 @@ mod ABSTRACT-BAKERY-PREDS is
 
     --- VARIABLES 
     var m : Mode .
-    vars ID1 ID2 : ProcessId .
-    vars Z Z' : Nat .
+    vars ID ID1 ID2 : ProcessId .
+    vars Z N1 N2 : Nat .
     var C : Configuration . 
         
     --- Un proceso estará en dicho modo
     op processInMode : ProcessId Mode -> Prop . 
+    op notInMutex : -> Prop .
 
-    eq [[ < ID1 : BProcess | mode: m, number: Z > C ]] |= processInMode(ID1, m) = true . 
+    eq [[ < ID : BProcess | mode: m, number: Z > C ]] |= processInMode(ID, m) = true . 
+
+    eq [[ < ID1 : BProcess | mode: crit, number: N1 >
+          < ID2 : BProcess | mode: crit, number: N2 > C ]] |= notInMutex = true .
 
 endm 
 
