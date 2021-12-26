@@ -9,6 +9,7 @@ fmod MEMORY++ is
 
     var B  : Bool .
     var BQ : BQid .
+    var M : Memory . 
 
     eq BQ in [BQ, B] M = true .
 
@@ -16,25 +17,22 @@ endfm
 
 fmod TESTS++ is
     including TESTS . 
+    pr MEMORY++ .
+    pr QID * (sort Qid to BQid, op qid to bqid) .
     
     op _=_  : BQid Bool -> Test .
-    op _>’_ : BQid Bool -> Test .
+    --- op _=_ : Int Int -> Test .
 
     vars B B’ K’  : Bool .
     var BQ : BQid .
+    var M : Memory .
+    vars T T’ : Test .
     
     --- EQUALS
     eq  eval(BQ = B, [BQ, B’] M) = B == B’ .
 
-    ceq eval(BQ = B, M) = B == 0 
-        if BQ in M =/= true .
+    ceq eval(BQ = B, M) = B == false if BQ in M =/= true .
 
-    --- GREATER THAN
-    eq  eval(BQ >’ B, [BQ, K’] M) = K’ > B .
-
-    ceq eval(BQ >’ B, M) = 0 > B 
-        if BQ in M =/= true .
-        
     --- AND
     eq  eval(T & T’, M) = eval(T, M) and eval(T’, M) .
 
@@ -42,20 +40,27 @@ endfm
 
 fmod EXPRESSION++ is 
     including EXPRESSION . 
+    pr MEMORY++ .
+
+    pr QID * (sort Qid to BQid, op qid to bqid) .
     sort BExpression . 
     subsorts BQid Bool < BExpression .
+
+    op _and’_ : BExpression BExpression -> BExpression [ctor] .
+    op _or’_ : BExpression BExpression -> BExpression [ctor] .
+    
 
     op eval : BExpression Memory -> Bool .
     var Q : BQid . 
     vars B B’ : Bool . 
     vars BE BE’ : BExpression .
+    var M : Memory .
 
     eq eval(B, M) = B .
     eq eval(Q, [Q, B] M) = B . 
-   ceq eval(Q,M) = 0 if Q in M =/= true .
-    eq eval(BE +’ BE’, M) = eval(BE, M) + eval(BE’, M) .
-    eq eval(BE *’ BE’, M) = eval(BE, M) * eval(BE’, M) .
-    eq eval(BE -’ BE’, M) = eval(BE, M) - eval(BE’, M) .
+   ceq eval(Q,M) = false if Q in M =/= true .
+    eq eval(BE and’ BE’, M) = eval(BE, M) and eval(BE’, M) .
+    eq eval(BE or’ BE’, M) = eval(BE, M) or eval(BE’, M) .
 endfm
 
 
@@ -69,9 +74,39 @@ endfm
 
 mod PARALLEL++ is
     including PARALLEL . 
-    inc SEQUENTIAL .
-    inc TESTS .
-    --- subsort Int < Pid .
+    inc SEQUENTIAL++ .
+    inc TESTS++ .
+
+    var  M : Memory .
+    var  BQ : BQid . 
+    var B : Bool .
+    var  BE : BExpression .
+    var I : Pid . 
+    var R : Program . 
+    var  S : Soup .
+
+    rl {[I, (BQ := BE) ; R] | S, [BQ, B] M} 
+      => {[I, R] | S, [BQ, eval(BE, [BQ, B] M)] M} .
+
+   crl {[I, (BQ := BE) ; R] | S, M} 
+      => {[I, R] | S, [BQ, eval(BE, M)] M} 
+      if BQ in M =/= true .
+
 
 endm 
 
+mod PRUEBAS++ is
+    inc PARALLEL++ .
+
+    op p1 : -> Program . 
+
+    op initial : -> MachineState .
+    eq initial = { [1, p1], ['turn, 1]} .
+    
+    eq p1
+        = 
+        'prueba := true ;
+        'result := false ;
+        if 'prueba = true then 'result := true fi .
+        
+endm
