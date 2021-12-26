@@ -1,77 +1,206 @@
 load parallel.maude
 
-fmod MEMORY++ is 
-    including MEMORY . 
+mod EXPRESSION-INT is
+    extending PARALLEL .
+
+    vars E E’ : Expression .
+    var M : Memory . 
+
+    op _=_  : Expression Expression -> Test .
+    op _>’_ : Expression Expression -> Test .
+    op _!=_ : Expression Expression -> Test .
+    
+    eq  eval(E = E’, M) = eval(E, M) == eval(E’, M) . 
+    eq  eval(E >’ E’, M) = eval(E, M) > eval(E’, M) . 
+    eq  eval(E != E’, M) = eval(E,M) =/= eval(E’,M) .
+
+endm
+
+mod EXPRESSION-BOOL is 
+    extending EXPRESSION-INT . 
+    
     pr QID * (sort Qid to BQid, op qid to bqid) .
-
-    op [_,_] : BQid Bool -> Memory .
-    op _in_ : BQid Memory -> Bool? . ---- cell allocated for Q?
-
-    var B  : Bool .
-    var BQ : BQid .
-
-    eq BQ in [BQ, B] M = true .
-
-endfm
-
-fmod TESTS++ is
-    including TESTS . 
-    
-    op _=_  : BQid Bool -> Test .
-    op _>’_ : BQid Bool -> Test .
-
-    vars B B’ K’  : Bool .
-    var BQ : BQid .
-    
-    --- EQUALS
-    eq  eval(BQ = B, [BQ, B’] M) = B == B’ .
-
-    ceq eval(BQ = B, M) = B == 0 
-        if BQ in M =/= true .
-
-    --- GREATER THAN
-    eq  eval(BQ >’ B, [BQ, K’] M) = K’ > B .
-
-    ceq eval(BQ >’ B, M) = 0 > B 
-        if BQ in M =/= true .
-        
-    --- AND
-    eq  eval(T & T’, M) = eval(T, M) and eval(T’, M) .
-
-endfm 
-
-fmod EXPRESSION++ is 
-    including EXPRESSION . 
     sort BExpression . 
     subsorts BQid Bool < BExpression .
 
+    op [_,_] : BQid Bool -> Memory .
+    op _in_ : BQid Memory -> Bool? . ---- cell allocated for Q?
+    op _=_  : BExpression BExpression -> Test .
+    op _!=_ : BExpression BExpression -> Test .
     op eval : BExpression Memory -> Bool .
+
     var Q : BQid . 
     vars B B’ : Bool . 
     vars BE BE’ : BExpression .
+    var M : Memory .
+
+    eq Q in [Q, B] M = true .
 
     eq eval(B, M) = B .
     eq eval(Q, [Q, B] M) = B . 
-   ceq eval(Q,M) = 0 if Q in M =/= true .
-    eq eval(BE +’ BE’, M) = eval(BE, M) + eval(BE’, M) .
-    eq eval(BE *’ BE’, M) = eval(BE, M) * eval(BE’, M) .
-    eq eval(BE -’ BE’, M) = eval(BE, M) - eval(BE’, M) .
-endfm
+   ceq eval(Q,M) = false if Q in M =/= true .
+
+    --- EQUALS
+    --- With Variables
+    eq  eval(Q = B, [Q, B’] M) = B == B’ .
+    ceq eval(Q = B, M) = B == false if Q in M =/= true .
+
+    --- With Literals
+    eq  eval(BE = BE’, M) = eval(BE, M) == eval(BE’, M) . 
+
+    --- NOT EQUALS
+    --- With Variables
+    ceq eval(Q != B, M) = B == false if Q in M =/= false .
+    eq  eval(Q != B, [Q, B’] M) = B =/= B’ .
+    
+    --- With Literals
+    eq  eval(BE != BE’, M) = eval(BE, M) =/= eval(BE’, M) . 
+
+endm
+
+mod EXPRESSION-ARRAY is 
+    extending PARALLEL .
+
+    sorts Array ArrayList .
+    subsort Array < Expression .
+    subsort Array < ArrayList . 
+
+    pr QID * (sort Qid to AQid, op qid to aqid) .
+
+    --- CONSTRUCTORS
+    --- Array
+    op _[_] : Qid Expression -> Array [ctor] .
+    
+    --- ArrayList
+    op empty : -> ArrayList [ctor] . 
+    op __ : ArrayList ArrayList -> ArrayList [ctor assoc comm id: empty] . 
+
+    --- MEMORY
+    --- [a[0], true] [a[1], false] ...
+    --- [a[0], 4] [a[1], 2] ...
+    op [_,_] : Array Expression -> Memory .
+
+    --- EXPRESSIONS
+    op _:=_ : Array Expression -> Program . 
+
+    vars P R : Program . 
+    var  S : Soup .
+    var  U : UserStatement . 
+    var  L : LoopingUserStatement .
+    vars I J : Pid . 
+    var  M : Memory .
+    var  Q : Qid . 
+    vars N X : Int .
+    var  E : Expression .
 
 
-fmod SEQUENTIAL++ is
+
+    --- [a[0], 4] [a[1], 2]
+    --- a[0] := 1 -> [a[0], 1]/[a[1], 2]
+
+    --- [a, [X M]]
+    --- [a, [1, 2, 4, 5]]
+
+    --- [a[0], 1]/[a[1], 2]
+
+    --- var a : Qid .
+    --- var pos : Int .
+    --- var N : Memory .
+    --- vars X val : Int .
+
+    --- Set de posición de memoria para un array
+    --- Argumentos
+    ---     Qid : Identificador del array
+    ---     Int  : Posición
+    ---     Int : Valor a setear
+    ---     Memory : Memoria
+    --- Salida:
+    ---     Memory : Memoria de salida con el argumento cambiado
+    --- op set : Qid Int Int Memory -> Memory .
+    --- eq set(a, pos, val, ([a[pos], X] N)) = [a[pos], val] N .
+    
+endm
+
+mod EXPRESSION++ is 
+    including EXPRESSION-INT .
+    including EXPRESSION-BOOL .
+    --- including EXPRESSION-ARRAY .
+endm
+
+--- view BoolFalse from DEFAULT to BOOL is
+---   sort Elt to BOOL .
+---   op 0 to term false .
+--- endv
+
+--- view Expression from DEFAULT to EXPRESSION++ is
+---   sort Elt to Expression .
+--- endv
+
+--- Instanciation of array for QID and INT
+mod QID-INT-ARRAY is
+    --- reduce in QID-INT-ARRAY : insert('one, 1,insert('two, 2, insert('three, 3, empty))) .
+    --- reduce in QID-INT-ARRAY : insert('a, 2, empty) .
+
+    --- reduce in QID-INT-ARRAY : (insert('one, 1,insert('two, 2, insert('three, 3, empty))))['one] .
+    pr ARRAY{Qid, Nat0} .
+endm
+
+
+--- TODO DEFAULT PARA BOOL
+--- Instanciation of array for QID and Expression
+--- mod QID-EXPRESSION-ARRAY is
+---     extending PARALLEL .
+---     --- reduce in QID-EXPRESSION-ARRAY : insert('one, 1,insert('two, 2, insert('three, 3, empty))) .
+---     --- reduce in QID-EXPRESSION-ARRAY : insert('a, 2, empty) .
+
+---     --- reduce in QID-EXPRESSION-ARRAY : (insert('one, 1,insert('two, 2, insert('three, 3, empty))))['one] .
+---     pr ARRAY{Qid, Expression} .
+--- endm
+
+
+mod SEQUENTIAL++ is
     including SEQUENTIAL . 
     extending EXPRESSION++ . 
 
     op _:=_ : BQid BExpression -> Program .
     
-endfm
+endm
 
 mod PARALLEL++ is
-    including PARALLEL . 
-    inc SEQUENTIAL .
-    inc TESTS .
-    --- subsort Int < Pid .
+    inc PARALLEL . 
+    inc SEQUENTIAL++ .
+    inc EXPRESSION++ .
+
+    var  M : Memory .
+    var  BQ : BQid . 
+    var B : Bool .
+    var  BE : BExpression .
+    var I : Pid . 
+    var R : Program . 
+    var  S : Soup .
+
+    rl {[I, (BQ := BE) ; R] | S, [BQ, B] M} 
+      => {[I, R] | S, [BQ, eval(BE, [BQ, B] M)] M} .
+
+   crl {[I, (BQ := BE) ; R] | S, M} 
+      => {[I, R] | S, [BQ, eval(BE, M)] M} 
+      if BQ in M =/= true .
+
 
 endm 
 
+mod PRUEBAS++ is
+    inc PARALLEL++ .
+
+    op p1 : -> Program . 
+
+    op initial : -> MachineState .
+    eq initial = { [1, p1], ['turn, 1]} .
+    
+    eq p1
+        = 
+        'prueba := 1 ;
+        'result := 2 ;
+        if 'prueba != 1 then 'result2 := 3 fi .
+        
+endm
