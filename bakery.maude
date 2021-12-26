@@ -89,8 +89,6 @@ mod BAKERY is
     --- Devuelve el número de procesos en estado crítico
     op critCount : GBState -> Nat .
     eq critCount ([[< Did : Dispenser | next: X, last: Y >]]) = 0 . 
-    eq critCount ([[ (< Pid : BProcess | mode: crit, number: X >) ]]) = 1 . 
-    ceq critCount ([[ (< Pid : BProcess | mode: m, number: X >) ]]) = 0 if m == sleep or m  == wait . 
     eq critCount ([[ (< Pid : BProcess | mode: crit, number: X >) C ]]) = 1 + critCount ([[C]]) . 
     ceq critCount ([[ (< Pid : BProcess | mode: m, number: X >) C ]]) = critCount ([[C]])  if m == sleep or m  == wait . 
 
@@ -161,7 +159,7 @@ mod ABSTRACT-BAKERY is
     --- Returns max number in the processes
     op maxNumber : Configuration -> Nat .
     eq maxNumber (none) = 0 .
-    eq maxNumber (< Pid : BProcess | mode: m, number: Z >)  = Z . 
+    eq maxNumber(< Did : Dispenser | next: X, last: Y > C ) = maxNumber(C) . 
     eq maxNumber (< Pid : BProcess | mode: m, number: Z > C ) = max(Z, maxNumber(C)) . 
 
     --- Ecuación que permite la abstracción

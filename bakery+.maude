@@ -31,17 +31,12 @@ mod BAKERY+ is
     --- Devuelve true si hay un proceso inmediatamente siguiente 
     op noProcessWithNumber : Nat Configuration -> Bool .
     eq  noProcessWithNumber (X, none) = true .
+    eq noProcessWithNumber (X, < Did : Dispenser | next: X, last: Y >) = true . 
     ceq noProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = false if X == Z .
     ceq noProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z >) = true if X =/= Z .
-    eq  noProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z > C) = noProcessWithNumber(X, < Pid : BProcess | mode: mode, number: Z >) and noProcessWithNumber(X, C) . 
+    ceq  noProcessWithNumber (X, < Pid : BProcess | mode: mode, number: Z > C) = 
+        noProcessWithNumber(X, < Pid : BProcess | mode: mode, number: Z >) and noProcessWithNumber(X, C) if C =/= none . 
 
-    --- Devuelve el número de procesos en sección crítica
-    op critCountPlus : Configuration -> Nat .
-    eq critCountPlus (none) = 0 .
-    eq critCountPlus (< Did : Dispenser | next: X, last: Y >) = 0 .  
-    eq critCountPlus (< Pid : BProcess | mode: crit, number: X > C)  = 1 + critCountPlus (C) . 
-    ceq critCountPlus (< Pid : BProcess | mode: mode, number: X > C ) = critCountPlus (C) if mode == sleep or mode == wait . 
-    
     --- Devuelve el número de procesos en espera
     op waitingCountPlus : Configuration -> Nat .
     eq waitingCountPlus (none) = 0 .
@@ -63,8 +58,6 @@ mod BAKERY+ is
       => [[ < Did : Dispenser | next: s X, last: Y > < Pid : BProcess | mode: mode, number: Z > C ]]
         if (noProcessWithNumber(X, < Pid : BProcess | mode: mode, number: Z > C) == true 
         and (waitingCountPlus(< Pid : BProcess | mode: mode, number: Z > C) > 0)) .
-        --- and (critCountPlus(< Did : Dispenser | next: X, last: Y > < Pid : BProcess | mode: wait, number: Z > C) == 0)) .
-
 endm  
 
 ---  ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ ____ _________ ____ 
@@ -93,6 +86,7 @@ mod ABSTRACT-BAKERY+ is
     --- Devuelve el mínimo número distinto de cero para una configuración
     op  minNumberNotZero : Nat Configuration -> Nat .
     eq  minNumberNotZero (X, none) = X .
+    eq minNumberNotZero (X, < Did : Dispenser | next: Z, last: Y >) = X .
     ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z > C ) = minNumberNotZero(min(X, Z), C) if (Z > 0 and X =/= 0) .
     ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z > C ) = minNumberNotZero(Z, C) if (Z > 0 and X == 0) .
     ceq minNumberNotZero (X, < Pid : BProcess | mode: m, number: Z > C ) = minNumberNotZero(X, C) if (Z == 0) .
