@@ -58,105 +58,123 @@ mod EXPRESSION-BOOL is
 
 endm
 
-mod EXPRESSION-ARRAY is 
-    extending PARALLEL .
-
-    sorts Array ArrayList .
-    subsort Array < Expression .
-    subsort Array < ArrayList . 
-
-    pr QID * (sort Qid to AQid, op qid to aqid) .
-
-    --- CONSTRUCTORS
-    --- Array
-    op _[_] : Qid Expression -> Array [ctor] .
-    
-    --- ArrayList
-    op empty : -> ArrayList [ctor] . 
-    op __ : ArrayList ArrayList -> ArrayList [ctor assoc comm id: empty] . 
-
-    --- MEMORY
-    --- [a[0], true] [a[1], false] ...
-    --- [a[0], 4] [a[1], 2] ...
-    op [_,_] : Array Expression -> Memory .
-
-    --- EXPRESSIONS
-    op _:=_ : Array Expression -> Program . 
-
-    vars P R : Program . 
-    var  S : Soup .
-    var  U : UserStatement . 
-    var  L : LoopingUserStatement .
-    vars I J : Pid . 
-    var  M : Memory .
-    var  Q : Qid . 
-    vars N X : Int .
-    var  E : Expression .
-
-
-
-    --- [a[0], 4] [a[1], 2]
-    --- a[0] := 1 -> [a[0], 1]/[a[1], 2]
-
-    --- [a, [X M]]
-    --- [a, [1, 2, 4, 5]]
-
-    --- [a[0], 1]/[a[1], 2]
-
-    --- var a : Qid .
-    --- var pos : Int .
-    --- var N : Memory .
-    --- vars X val : Int .
-
-    --- Set de posición de memoria para un array
-    --- Argumentos
-    ---     Qid : Identificador del array
-    ---     Int  : Posición
-    ---     Int : Valor a setear
-    ---     Memory : Memoria
-    --- Salida:
-    ---     Memory : Memoria de salida con el argumento cambiado
-    --- op set : Qid Int Int Memory -> Memory .
-    --- eq set(a, pos, val, ([a[pos], X] N)) = [a[pos], val] N .
-    
-endm
-
 mod EXPRESSION++ is 
     including EXPRESSION-INT .
     including EXPRESSION-BOOL .
     --- including EXPRESSION-ARRAY .
 endm
 
---- view BoolFalse from DEFAULT to BOOL is
----   sort Elt to BOOL .
----   op 0 to term false .
---- endv
-
---- view Expression from DEFAULT to EXPRESSION++ is
----   sort Elt to Expression .
---- endv
-
---- Instanciation of array for QID and INT
-mod QID-INT-ARRAY is
-    --- reduce in QID-INT-ARRAY : insert('one, 1,insert('two, 2, insert('three, 3, empty))) .
-    --- reduce in QID-INT-ARRAY : insert('a, 2, empty) .
-
-    --- reduce in QID-INT-ARRAY : (insert('one, 1,insert('two, 2, insert('three, 3, empty))))['one] .
-    pr ARRAY{Qid, Nat0} .
+--- Aux Bool module with undefined value
+mod BOOL+ is
+    inc BOOL .
+    sort Bool+ .
+    subsort Bool+ < Bool .
+    op undf : -> Bool .
 endm
 
+--- Aux Integer module with undefined value
+mod INT+ is
+    inc INT .
+    sort Int+ .
+    subsort Int+ < Int .
+    op undf : -> Int .
+endm
 
---- TODO DEFAULT PARA BOOL
---- Instanciation of array for QID and Expression
---- mod QID-EXPRESSION-ARRAY is
----     extending PARALLEL .
----     --- reduce in QID-EXPRESSION-ARRAY : insert('one, 1,insert('two, 2, insert('three, 3, empty))) .
----     --- reduce in QID-EXPRESSION-ARRAY : insert('a, 2, empty) .
+--- Defines default for Booleans
+view Bool0 from DEFAULT to BOOL+ is
+  sort Elt to Bool+ .
+  op 0 to term undf .
+endv
 
----     --- reduce in QID-EXPRESSION-ARRAY : (insert('one, 1,insert('two, 2, insert('three, 3, empty))))['one] .
----     pr ARRAY{Qid, Expression} .
---- endm
+--- Maybe no need because there's one in prelude
+--- --- Defines default for Ints
+--- view Int0 from DEFAULT to INT+ is
+---   sort Elt to Int+ .
+---   op 0 to term undf .
+--- endv
 
+--- Defines default for Expression
+view Expression from DEFAULT to EXPRESSION++ is
+  sort Elt to Expression .
+endv
+
+--- Defines default for BExpression
+view BExpression from DEFAULT to EXPRESSION++ is
+  sort Elt to BExpression .
+  op 0 to term ' .
+endv
+
+--- Instanciation of array for QID, BExpression and Expression
+mod QID-EXPRESSION-ARRAY is
+    extending EXPRESSION-BOOL .
+    extending PARALLEL .
+
+    --- reduce in QID-EXPRESSION-ARRAY : (insert(1, 1,insert(2, 2, insert(3, 3, empty))))['one] .
+    --- reduce in QID-EXPRESSION-ARRAY : (insert(1, true,insert(2, false, insert(3, true, empty))))['one] .
+    pr ARRAY{Nat, Expression} .
+    pr ARRAY{Nat, BExpression} * (sort Array to BArray) .
+endm
+
+mod EXPRESSION-ARRAY is 
+    extending PARALLEL .
+    pr QID-EXPRESSION-ARRAY .
+
+    pr QID * (sort Qid to AQid, op qid to aqid) .
+
+    --- MEMORY
+    --- [a, {1, 3, 5}] [b, {3, 4, 5}] - For Expression (Integers)
+    --- [a, {true}] [b, {false, true, false}] - For BExpression (Booleans)
+    op [_,_] : Qid Array{Nat, Expression}   -> Memory .
+    op [_,_] : BQid Array{Nat, BExpression} -> Memory .
+
+    --- EXPRESSIONS
+    ---  'a[2] := 4
+    ---  ['a, A] con ['a, insert(eval(4, M), eval(2, M), A)]
+    sort BArray .
+    subsort BArray < BExpression .
+    op _[_] : BQid Expression -> BArray . --- For Bools
+
+    --- sort ArrayIdx .
+    --- subsort ArrayIdx < Expression .
+    --- op _[_] : AQid Nat -> ArrayIdx [ctor] . --- For Ints
+
+    --- op _:=_ : ArrayIdx Expression   -> Program .
+    op _:=_ : BArray BExpression -> Program .
+
+    var  M : Memory .
+    var  BQ : BQid .
+    var Idx : Expression .
+    var B : Array{Nat, BExpression} .
+    var X : Array{Nat, Expression} .
+    var E : Expression .
+    var  BE : BExpression .
+    var I : Pid . 
+    var R : Program . 
+    var  S : Soup .
+
+    --- ARRAY OF BOOLEANS
+    --- Array exists, insert
+    rl [BArrayInsert] : {[I, (BQ[Idx] := BE) ; R] | S, [BQ, B] M} 
+      => {[I, R] | S, [BQ, insert(Idx, BE, B)] M} .
+
+    --- Array does not exist, initialize
+   crl [BArrayCreate] :  {[I, (BQ[Idx] := BE) ; R] | S, M} 
+      => {[I, R] | S, [BQ, insert(Idx, BE, empty)] M} 
+      if BQ in M =/= true .
+
+    --- ARRAY OF INTEGERS
+    --- rl {[I, (AQ := E) ; R] | S, [AQ, X] M} 
+    ---   => {[I, R] | S, [AQ, eval(E, [AQ, X] M)] M} .
+
+---    crl {[I, (AQ := E) ; R] | S, M} 
+---       => {[I, R] | S, [AQ, eval(E, M)] M} 
+---       if AQ in M =/= true .
+
+    --- EVAL
+    --- 'a[3]
+    --- A[eval(3, M)]
+
+endm
 
 mod SEQUENTIAL++ is
     including SEQUENTIAL . 
@@ -170,6 +188,7 @@ mod PARALLEL++ is
     inc PARALLEL . 
     inc SEQUENTIAL++ .
     inc EXPRESSION++ .
+    inc EXPRESSION-ARRAY .
 
     var  M : Memory .
     var  BQ : BQid . 
@@ -199,8 +218,9 @@ mod PRUEBAS++ is
     
     eq p1
         = 
-        'prueba := 1 ;
+        'prueba[0] := true ;
+        'prueba[2] := false ;
         'result := 2 ;
-        if 'prueba != 1 then 'result2 := 3 fi .
+        if 'prueba[0] != true then 'result2 := 3 fi .
         
 endm
