@@ -24,33 +24,58 @@ mod EXPRESSION-BOOL is
     subsorts BQid Bool < BExpression .
 
     op [_,_] : BQid Bool -> Memory .
-    op _in_ : BQid Memory -> Bool? . ---- cell allocated for Q?
+    --- op _in_ : BQid Memory -> Bool? . ---- cell allocated for Q?
     op _=_  : BExpression BExpression -> Test .
     op _!=_ : BExpression BExpression -> Test .
     op eval : BExpression Memory -> Bool .
 
-    var Q : BQid . 
+    vars BQ Q : BQid . 
     vars B B’ : Bool . 
     vars BE BE’ : BExpression .
     var M : Memory .
 
-    eq Q in [Q, B] M = true .
+    op _BQidInMemory_ : BQid Memory -> Bool .
+    eq BQ BQidInMemory ([BQ, BE] M) = true .
+    eq BQ BQidInMemory M = false [owise] .
+
+---     --- eq eval(BE, M) = BE .
+---     --- eq eval(Q, [Q, BE] M) = BE . 
+---     ceq eval(Q,M) = false if Q BQidInMemory M == false .
+---     eq eval(BE,M) = BE . 
+---     eq eval(BQ, [BQ,BE] M) = BE .
+---     --- 45 ceq eval(BQ, M) = false if BQ in M =/= true .
+---     --- 66 eq eval(BE = BE', M) = eval(BE,M) == eval(BE',M) . 
+---     --- 74 eq eval(BE != BE', M) = eval(BE,M) =/= eval(BE',M) . 
+---     --- EQUALS
+---     --- With Variables
+---    eq  eval(Q = B, [Q, B’] M) = B == B’ .
+---    ceq eval(Q = B, M) = B == false if Q BQidInMemory M == false .
+---     --- With Literals
+---     eq  eval(BE = BE’, M) = eval(BE, M) == eval(BE’, M) . 
+---     --- NOT EQUALS
+---     --- With Variables
+---    ceq eval(Q != B, M) = B == true if Q BQidInMemory M == false .
+---    eq  eval(Q != B, [Q, B’] M) = B =/= B’ . 
+---     --- With Literals
+---     eq  eval(BE != BE’, M) = eval(BE, M) =/= eval(BE’, M) . 
+
+    --- eq Q BQidInMemory [Q, B] M = true .
 
     eq eval(B, M) = B .
     eq eval(Q, [Q, B] M) = B . 
-   ceq eval(Q,M) = false if Q in M =/= true .
+   ceq eval(Q,M) = false if Q BQidInMemory M == false .
 
     --- EQUALS
     --- With Variables
     eq  eval(Q = B, [Q, B’] M) = B == B’ .
-    ceq eval(Q = B, M) = B == false if Q in M =/= true .
+    ceq eval(Q = B, M) = B == false if Q BQidInMemory M == false .
 
     --- With Literals
     eq  eval(BE = BE’, M) = eval(BE, M) == eval(BE’, M) . 
 
     --- NOT EQUALS
     --- With Variables
-    ceq eval(Q != B, M) = B == false if Q in M =/= false .
+    ceq eval(Q != B, M) = B == false if Q BQidInMemory M == true .
     eq  eval(Q != B, [Q, B’] M) = B =/= B’ .
     
     --- With Literals
@@ -85,13 +110,6 @@ view Bool0 from DEFAULT to BOOL+ is
   sort Elt to Bool+ .
   op 0 to term undf .
 endv
-
---- Maybe no need because there's one in prelude
---- --- Defines default for Ints
---- view Int0 from DEFAULT to INT+ is
----   sort Elt to Int+ .
----   op 0 to term undf .
---- endv
 
 --- Defines default for Expression
 view Expression from DEFAULT to EXPRESSION++ is
@@ -134,23 +152,32 @@ mod EXPRESSION-ARRAY is
     subsort BArray < BExpression .
     op _[_] : BQid Expression -> BArray . --- For Bools
 
-    --- sort ArrayIdx .
-    --- subsort ArrayIdx < Expression .
-    --- op _[_] : AQid Nat -> ArrayIdx [ctor] . --- For Ints
+    sort Array .
+    subsort Array < Expression .
+    op _[_] : Qid Expression -> Array . --- For Ints
 
-    --- op _:=_ : ArrayIdx Expression   -> Program .
     op _:=_ : BArray BExpression -> Program .
+    op _:=_ : Array Expression -> Program .
 
     var  M : Memory .
     var  BQ : BQid .
-    var Idx : Expression .
+    var AQ : Qid .
+    vars Idx E : Expression .
     var B : Array{Nat, BExpression} .
     var X : Array{Nat, Expression} .
-    var E : Expression .
     var  BE : BExpression .
     var I : Pid . 
     var R : Program . 
     var  S : Soup .
+
+
+    op _BQidInArrayMemory_ : BQid Memory -> Bool .
+    eq BQ BQidInArrayMemory ([BQ, B] M) = true .
+    eq BQ BQidInArrayMemory M = false [owise] .
+
+    op _QidInArrayMemory_ : Qid Memory -> Bool .
+    eq AQ QidInArrayMemory ([AQ, X] M) = true .
+    eq AQ QidInArrayMemory M = false [owise] .
 
     --- ARRAY OF BOOLEANS
     --- Array exists, insert
@@ -160,15 +187,15 @@ mod EXPRESSION-ARRAY is
     --- Array does not exist, initialize
    crl [BArrayCreate] :  {[I, (BQ[Idx] := BE) ; R] | S, M} 
       => {[I, R] | S, [BQ, insert(Idx, BE, empty)] M} 
-      if BQ in M =/= true .
+      if BQ BQidInArrayMemory M == false .
 
     --- ARRAY OF INTEGERS
-    --- rl {[I, (AQ := E) ; R] | S, [AQ, X] M} 
-    ---   => {[I, R] | S, [AQ, eval(E, [AQ, X] M)] M} .
+    rl {[I, (AQ[Idx] := E) ; R] | S, [AQ, X] M} 
+       => {[I, R] | S, [AQ, insert(Idx, E, X)] M} .
 
----    crl {[I, (AQ := E) ; R] | S, M} 
----       => {[I, R] | S, [AQ, eval(E, M)] M} 
----       if AQ in M =/= true .
+   crl {[I, (AQ[Idx] := E) ; R] | S, M} 
+      => {[I, R] | S, [AQ, insert(Idx, E, empty)] M} 
+      if AQ QidInArrayMemory M == false .
 
     --- EVAL
     --- 'a[3]
@@ -176,35 +203,67 @@ mod EXPRESSION-ARRAY is
 
 endm
 
-mod SEQUENTIAL++ is
-    including SEQUENTIAL . 
-    extending EXPRESSION++ . 
+mod SEQUENTIAL++ is 
+    extending PARALLEL . 
 
-    op _:=_ : BQid BExpression -> Program .
+    vars P R W : Program . 
+    var  S : Soup .
+    var  T : Test . 
+    var M : Memory .
+    var I : Pid . 
     
+    op if_then_else_fi : Test Program Program -> Program .
+    op repeat_until_li : Program Test -> Program .
+
+---  crl {[P, if T then R else R' fi ; R''] | S, M} 
+---       => {[P, R ; R''] | S, M} if eval(T,M) == true .
+
+---    crl {[P, if T then R else R' fi ; R''] | S, M} 
+---       => {[P, R' ; R''] | S, M} if eval(T,M) == false .
+
+
+    rl {[I, if T then P else W fi ; R] | S, M} 
+      => {[I, if eval(T, M) then P else W fi ; R] | S, M} .   
+
+    crl {[I, repeat P until T li ; R] | S, M} 
+      => {[I, R] | S, M} if eval(T,M) == true .
+
+    crl {[I, repeat P until T li ; R] | S, M} 
+      => {[I, R ; repeat P until T li ; R] | S, M} if eval(T,M) == false .
+
 endm
+
 
 mod PARALLEL++ is
     inc PARALLEL . 
-    inc SEQUENTIAL++ .
+    inc SEQUENTIAL++ . 
     inc EXPRESSION++ .
     inc EXPRESSION-ARRAY .
 
     var  M : Memory .
-    var  BQ : BQid . 
+    var  BQ : BQid .
+    var  Q : Qid .  
     var B : Bool .
     var  BE : BExpression .
+    var  E : Expression .
     var I : Pid . 
     var R : Program . 
     var  S : Soup .
 
-    rl {[I, (BQ := BE) ; R] | S, [BQ, B] M} 
+    op _QidInMemory_ : Qid Memory -> Bool .
+    eq Q QidInMemory ([Q, E] M) = true .
+    eq Q QidInMemory M = false [owise] .
+
+    crl {[I, (Q := E) ; R] | S, M} 
+      => {[I, R] | S, [Q, eval(E, M)] M} 
+      if Q QidInMemory M == false .
+
+    rl [BoolAssign] : {[I, (BQ := BE) ; R] | S, [BQ, B] M} 
       => {[I, R] | S, [BQ, eval(BE, [BQ, B] M)] M} .
 
-   crl {[I, (BQ := BE) ; R] | S, M} 
+   crl [BoolCreate] : {[I, (BQ := BE) ; R] | S, M} 
       => {[I, R] | S, [BQ, eval(BE, M)] M} 
-      if BQ in M =/= true .
-
+      if BQ BQidInMemory M == false .
 
 endm 
 
@@ -214,13 +273,31 @@ mod PRUEBAS++ is
     op p1 : -> Program . 
 
     op initial : -> MachineState .
-    eq initial = { [1, p1], ['turn, 1]} .
-    
+    eq initial = { [1, p1], ['turn, 1] } .
+
+    --- eq p1
+        --- = 
+        --- 'prueba[1] := 4 ;
+        --- 'prueba[2] := 3 ;
+        --- --'test := true ;
+        --- 'test := false ;
+        --- 'result := false ;
+        --- 'y := 3 ;
+        --- 'n := 1 ;
+        --- 'x := 1 +’ 'y ;
+        --- 'prueba['n] := 1 *’ 3 . 
+        --- 'prueba['n] := 3 . 
+        --- if 'test = true then 'result := true fi .
+
+         
     eq p1
         = 
-        'prueba[0] := true ;
-        'prueba[2] := false ;
-        'result := 2 ;
-        if 'prueba[0] != true then 'result2 := 3 fi .
+        'test2 := 1 ;
+        'result2 := 2 ;
+        --- 'test2 := 'test2 +’ 1 .
+        --- 'prueba[2] := false ;
+        --- 'result2 := true .
+        repeat ('test2 := 'test2 +’ 1) until ('test2 != 1) li .
+        --- if 'test2 = 1 then 'result2 := 5 else 'result2 := 9 fi .
         
 endm
