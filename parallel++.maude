@@ -143,8 +143,13 @@ mod EXPRESSION-ARRAY is
     var I : Pid . 
     var R : Program . 
     var  S : Soup .
-
---- Incluir sequential?  eq eval(IA,[IA, E] M) = eval(E, M) .
+    var Ent : Entry{Nat, Expression} .
+    var BEnt : Entry{Nat, BExpression} .
+    var N : Nat .
+    
+    eq eval(BQ[N], [BQ, B] M) = B[N] .
+    eq eval(AQ[N], [AQ, X] M) = X[N] .
+    
     op _BQidInArrayMemory_ : BQid Memory -> Bool .
     eq BQ BQidInArrayMemory ([BQ, B] M) = true .
     eq BQ BQidInArrayMemory M = false [owise] .
@@ -190,21 +195,25 @@ mod SEQUENTIAL++ is
     op if_then_else_fi : Test Program Program -> Program .
     op repeat_until_li : Program Test -> Program .
 
---- works
     rl {[I, if T then P else W fi ; R] | S, M}  
       => {[I, if eval(T, M) then P else W fi ; R] | S, M}  .   
 
---- works
-    ---crl {[I, if T then P else W fi ; R] | S, M} 
-    ---  => {[I, W ; R] | S, M} if eval(T, M) == false . 
-
---- works
     rl {[I, repeat P until T li ; R] | S, M} 
-      => {[I, (P ; if eval(T,M) then skip else (repeat P until T li) fi ; R)] | S, M} .
---- works
-   --- crl {[I, repeat P until T li ; R] | S, M} 
-   ---   => {[I, R] | S, M} if eval(T,M) == false .
+     => {[I, (P ; if eval(T,M) then skip else (repeat P until T li) fi ; R)] | S, M} .
 
+    --- {[1, repeat skip until 1 = 2 li] | []}
+    --- false
+
+    ---  {[1, skip ; repeat skip until 1 = 2 li] | []}
+
+    ---  {[1, (skip ; repeat skip until 1 = 2 li)] | []}
+ 
+
+    ---  crl {[I, repeat P until T li ; R] | S, M} 
+    ---   => {[I, P ; repeat P until T li ; R] | S, M} if eval(T,M) =/= true .
+
+    --- crl {[I, repeat P until T li ; R] | S, M} 
+    ---     => {[I, R] | S, M} if eval(T,M) == true .
 endm
 
 
@@ -243,13 +252,24 @@ endm
 
 mod PRUEBAS++ is
     inc PARALLEL++ .
+    inc PARALLEL .
 
     op p1 : -> Program . 
     op p2 : -> Program .
-
+    op p3 : -> Program .
+    
     op initial : -> MachineState .
     eq initial = { [1, p1] | [2, p2], ['test, 5] ['result2, 0] ['result, 3] } .
+
+    op initial1 : -> MachineState .
+    eq initial1 = { [1, p1], ['test, 5] ['result2, 0] ['result, 3] } .
     
+    op initial2 : -> MachineState .
+    eq initial2 = { [1, p2], ['test, 25] ['result2, 0] ['result, 13] } .
+
+    op initial3 : -> MachineState .
+    eq initial3 = { [1, p3], ['result2, 0] } .
+
     ops crit1 crit2 : -> UserStatement .
     ops rem1 rem2 : -> LoopingUserStatement .
    
@@ -259,9 +279,8 @@ mod PRUEBAS++ is
         --- 'prueba[2] := false ;
         --- 'result2 := true .
        --- repeat  'wants_to_enter[0] := true ; 'test2 := 'test2 +’ 1 ; 'result := 'result -’ 1 ; 
-        while 'test >’ 'result do 
-          crit1 ; 
-          'result := 'result -’ 1 ; 
+        while 'test >’ 'result do  
+          'result := 'result +’ 1 ; 
           if 'result2 != 0 then
               'wants_to_enter[0] := false 
                  ---   while 'turn != 0 do
@@ -271,8 +290,7 @@ mod PRUEBAS++ is
           else 
             ---        skip 
             'result2 := 'result2 +’ 1 
-          fi ;
-          rem2 
+          fi 
         od . 
          
     eq p2
@@ -282,7 +300,6 @@ mod PRUEBAS++ is
         --- 'result2 := true .
        --- repeat  'wants_to_enter[0] := true ; 'test2 := 'test2 +’ 1 ; 'result := 'result -’ 1 ; 
         while 'test >’ 'result do 
-          crit2 ;
           'result := 'result +’ 7 ; 
           if 'result2 != 0 then
               'wants_to_enter[0] := true 
@@ -291,12 +308,15 @@ mod PRUEBAS++ is
               ---      od ;
               
           else 
-            ---        skip 
+            ---        skip  
             'result2 := 'result2 +’ 3 
-          fi ;
-          rem1 
+          fi 
         od . 
        --- until 'test2 != 10 li .
   ---      if 'test2 != 10 then 'result2 := 5 else 'result2 := 9 fi .
-        
+     eq p3 = 
+      repeat 
+        skip
+      until true != true li .
 endm
+ 
